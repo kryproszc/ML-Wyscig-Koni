@@ -1,1 +1,88 @@
+return (
+  <div className="p-6 text-white">
+    <div className="flex gap-6">
+      {/* Lewy panel */}
+      <div className="w-1/10 min-w-[200px] p-4 bg-[#1e1e2f] text-white/80 border border-white/10 rounded self-stretch">
+        <h4 className="font-semibold mb-4">Panel przycisków</h4>
+        <button
+          onClick={handleSubmit}
+          className="w-full mt-4 bg-slate-700 hover:bg-slate-600 text-white px-4 py-1 rounded"
+        >
+          Wyznacz współczynniki
+        </button>
+      </div>
 
+      {/* Prawy panel */}
+      <div className="flex-1">
+        {/* Górna tabela */}
+        <h3 className="text-lg font-bold mb-4">Wynik: train_devide</h3>
+
+        <TrainDevideTable 
+          data={trainDevide} 
+          rowHeaders={rowHeaders}
+          colHeaders={colHeaders}
+          selected={selectedCells} 
+          onClick={toggleCell}
+        />
+
+        {/* Dolna tabela: Współczynniki */}
+        {(dev.length || sd.length || sigma.length) > 0 && (
+          <div key={version} className="mt-10 overflow-x-auto rounded-xl border border-slate-700 shadow-md">
+            <h4 className="text-white/90 text-md font-semibold px-4 pt-4">
+              Współczynniki
+            </h4>
+            <table className="w-max table-auto border-collapse">
+              <thead>
+                <tr>
+                  <td className="px-6 py-3 border bg-slate-800 text-white font-semibold text-center">Rodzaj</td>
+                  {colHeaders.map((header, i) => (
+                    <td
+                      key={i}
+                      className="px-6 py-3 border bg-slate-800 text-center text-white font-semibold min-w-[120px]"
+                    >
+                      {header}
+                    </td>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[{ label: 'Dev', data: dev }, { label: 'SD', data: sd }, { label: 'σ', data: sigma }].map((row, i) => (
+                  <tr key={i}>
+                    <td className="px-6 py-3 border font-bold text-slate-400 bg-slate-800 text-center">
+                      {row.label}
+                    </td>
+                    {row.data.map((val, j) => (
+                      <td
+                        key={j}
+                        className="px-4 py-2 border bg-slate-800 text-right brightness-90 min-w-[120px]"
+                      >
+                        <input
+                          type="number"
+                          step="0.00001"
+                          defaultValue={val}
+                          className="bg-transparent text-right w-full min-w-[100px] px-2 py-1 outline-none"
+                          onBlur={(e) => {
+                            const parsed = parseFloat(e.target.value);
+                            if (!isNaN(parsed) && parsed !== val) {
+                              const updated = [...row.data];
+                              updated[j] = parsed;
+
+                              if (row.label === 'Dev') setDev(updated);
+                              if (row.label === 'SD') setSd(updated);
+                              if (row.label === 'σ') setSigma(updated);
+                              setVersion((v) => v + 1); // 🔁 odśwież po edycji
+                            }
+                          }}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+);
