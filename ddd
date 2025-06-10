@@ -1,17 +1,42 @@
-import numpy as np
 
-def odwrocona_nad_przekatna(n: int) -> np.ndarray:
-    """
-    Tworzy macierz n x n z jedynkami nad przekątną odwrotną (i + j < n - 1),
-    a zerami w pozostałych miejscach.
-    """
-    macierz = np.zeros((n, n))
-    for i in range(n):
-        for j in range(n):
-            if i + j < n - 1:
-                macierz[i, j] = 1.0
-    return macierz
+@app.post("/calc/obliczenia_boot_multiplikatywna")
+async def obliczenia_boot_multiplikatywna(payload: WspolczynnikiBootParamRequest):
+    wagi = pd.DataFrame(payload.wagi_boot)
+    data = {}
+    headers = payload.triangle[0][1:]
+    for i, col in enumerate(headers):
+        data[col] = [
+            int(row[i + 1]) if str(row[i + 1]).isdigit() else 0
+            for row in payload.triangle[1:]
+        ]
+    triangle_np = np.array(list(data.values()), dtype=float).T
+    weight_np = wagi.iloc[:(wagi.shape[0]-1), :(wagi.shape[0]-1)].to_numpy(dtype=np.float64)
+    print(pd.DataFrame(weight_np))
+    
+    results = TriangleCalculator.run_bootstrap_monte_carlo_init(
+        triangle_np,
+        weight_np,
+        number_of_simulations=payload.sim_total,
+        is_sigma_reestimated=payload.is_sigma_reestimated,
+        value_sigma=payload.value_sigma
+    )
 
-# Przykład użycia
-macierz_19 = odwrocona_nad_przekatna(19)
-print(macierz_19)
+
+    latest = np.sum(TriangleCalculator.get_latest(pd.DataFrame(triangle_np)))
+    sim_diff_np = results - latest
+
+    request_id = str(uuid.uuid4())
+    user_session = SESSIONS.get_session(payload.user_id)
+    user_session.save_simulation(request_id, results, sim_diff_np, latest)
+
+    counts, bins = np.histogram(results, bins=50)
+
+    return {
+        "message": "OK",
+        "request_id": request_id,
+        "triangle_shape": triangle_np.shape,
+        "histogram": {
+            "bins": bins.tolist(),
+            "counts": counts.tolist()
+        }
+    }
