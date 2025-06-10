@@ -1,24 +1,17 @@
-import pandas as pd
 import numpy as np
 
-# Ścieżka do pliku Excel
-sciezka = 'sciezka/do/pliku.xlsx'
+def odwrocona_nad_przekatna(n: int) -> np.ndarray:
+    """
+    Tworzy macierz n x n z jedynkami nad przekątną odwrotną (i + j < n - 1),
+    a zerami w pozostałych miejscach.
+    """
+    macierz = np.zeros((n, n))
+    for i in range(n):
+        for j in range(n):
+            if i + j < n - 1:
+                macierz[i, j] = 1.0
+    return macierz
 
-# Parametry zakresu danych
-arkusz = 'Arkusz1'              # Nazwa arkusza
-wiersz_start = 1                # Indeks początkowy wiersza (licząc od 0)
-wiersz_koniec = 10              # Indeks końcowy wiersza (niewłączany)
-kolumna_start = 1              # Indeks początkowy kolumny (0 = kolumna A)
-kolumna_koniec = 4             # Indeks końcowy kolumny (niewłączany)
-
-# Wczytanie całego arkusza
-df_pelny = pd.read_excel(sciezka, sheet_name=arkusz, header=None)
-
-# Wycięcie odpowiedniego zakresu danych (wiersze i kolumny)
-df_zakres = df_pelny.iloc[wiersz_start:wiersz_koniec, kolumna_start:kolumna_koniec]
-
-# Konwersja do numpy.ndarray
-dane_numpy = df_zakres.to_numpy()
-
-# Wyświetlenie wyniku (opcjonalnie)
-print(dane_numpy)
+# Przykład użycia
+macierz_19 = odwrocona_nad_przekatna(19)
+print(macierz_19)
