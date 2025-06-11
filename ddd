@@ -1,13 +1,12 @@
-class WspolczynnikiBootParamRequest(BaseModel):
-    user_id: str
-    dev: List[float]
-    sd: List[float]
-    sigma: List[float]
-    triangle: List[List[Union[str, int, float, None]]]
-    wagi_boot: List[List[int]]
-    sim_total: Optional[int] = 1000
-    batch_sim: Optional[int] = 1000
-    main_seed: Optional[int] = 202260011
-    ultimate_param_resrisk: Optional[int] = 0
-    is_sigma_reestimated: Optional[bool] = False  
-    value_sigma: Optional[float] = 1.0           
+import time
+
+start = time.time()  # zapisz czas początkowy
+
+# kod, którego czas wykonania chcesz zmierzyć
+for i in range(1000000):
+    pass
+
+end = time.time()  # zapisz czas końcowy
+elapsed = end - start
+
+print(f"Czas wykonania: {elapsed:.4f} sekund")
