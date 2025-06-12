@@ -1,8 +1,1 @@
-Serwer oparty na systemie Linux jest niezbędny do wdrożenia i utrzymania aplikacji, z których korzystać będzie zespół oceny modeli oraz Departament D.
-Platforma ta zapewni stabilne i bezpieczne środowisko produkcyjne dla kluczowych komponentów systemu.
-
-Dodatkowo, w perspektywie rozwoju planowane są projekty o wysokim zapotrzebowaniu na zasoby obliczeniowe.
-Będą to programy zbudowane w oparciu o bazę danych, intensywnie z niej korzystające oraz wykonujące złożone zapytania i operacje analityczne.
-
-W związku z tym system Linux został wybrany jako rozwiązanie umożliwiające efektywne zarządzanie wydajnością, 
-łatwą integracją z narzędziami programistycznymi oraz elastycznym skalowaniem środowiska w miarę rosnących potrzeb.
+W związku z planowanymi projektami o dużym zapotrzebowaniu na moc obliczeniową – opartymi na intensywnym wykorzystaniu baz danych i złożonych operacjach analitycznych – system Linux został wybrany jako rozwiązanie zapewniające wysoką wydajność, łatwą integrację z narzędziami programistycznymi oraz możliwość elastycznego skalowania.
