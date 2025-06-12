@@ -1,12 +1,8 @@
-import time
+Serwer oparty na systemie Linux jest niezbędny do wdrożenia i utrzymania aplikacji, z których korzystać będzie zespół oceny modeli oraz Departament D.
+Platforma ta zapewni stabilne i bezpieczne środowisko produkcyjne dla kluczowych komponentów systemu.
 
-start = time.time()  # zapisz czas początkowy
+Dodatkowo, w perspektywie rozwoju planowane są projekty o wysokim zapotrzebowaniu na zasoby obliczeniowe.
+Będą to programy zbudowane w oparciu o bazę danych, intensywnie z niej korzystające oraz wykonujące złożone zapytania i operacje analityczne.
 
-# kod, którego czas wykonania chcesz zmierzyć
-for i in range(1000000):
-    pass
-
-end = time.time()  # zapisz czas końcowy
-elapsed = end - start
-
-print(f"Czas wykonania: {elapsed:.4f} sekund")
+W związku z tym system Linux został wybrany jako rozwiązanie umożliwiające efektywne zarządzanie wydajnością, 
+łatwą integracją z narzędziami programistycznymi oraz elastycznym skalowaniem środowiska w miarę rosnących potrzeb.
