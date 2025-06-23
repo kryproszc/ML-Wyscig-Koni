@@ -1,1 +1,1 @@
-
+                    res_before = (((base_val / base_val_inc) - rj[j])/(np.sqrt(varj[j] / (base_val_inc ))))
