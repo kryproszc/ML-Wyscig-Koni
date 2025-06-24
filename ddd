@@ -1,1 +1,474 @@
-d
+import pandas as pd
+import numpy as np
+dev_inc = [
+    1.1974598784313900, 1.0119662528789330, 1.007247172802100, 1.003643706393100, 0.9994539960801570, 1.0001082759915100,
+    1.0000259452263100, 1.0000062170270500, 1.0000014897316700, 1.0000003569713400, 1.0000000855379100, 1.0000000204967000, 1.0000000049114400,
+    1.0000000011768900, 1.0000000028201000, 1.0000000000675700, 1.0000000001619000, 1.0000000000388000, 1.0000000000093000, 1.0000000000022000,
+    1.0000000000000500, 1.0000000000000100, 1.0000000000000000, 1.0000000000000000, 1.0000000000000000, 1.0000000000000000, 1.0000000000000000,
+    1.0000000000000000, 1.0000000000000000, 1.0000000000000000
+]
+
+sigma_inc = [
+    61967.8569741107000000, 931.9896231182040000, 85.8890502841800000, 166.0044987654600000, 66.1706781252920000, 69.1160589238516000,
+    31.3365410987346000, 14.2076794200227000, 6.4416220624390200, 2.9205680652410800, 1.3241568258781600, 0.600359567673124800, 0.2721971760676540,
+    0.1234115190583980, 0.0559535685191032, 0.0253687974502646, 0.0115019631652775, 0.0052148769335544, 0.0023643738935120, 0.001071988607026,
+    0.00048602629354015, 0.0002203598305864, 0.0000999089791103, 0.0000452977481436, 0.0000205375533325, 0.000093115245160, 0.0000042217536466,
+    0.000093115246160, 0.000042217536466, 0.000019140105564
+]
+
+sd_inc = [
+    0.0011484984949328, 0.00001726749545590, 0.0000018349129003, 0.0000039280441855, 0.000017418779140, 0.0000003238202947,
+    0.0000000003147168, 0.000000000284911, 0.000000000024921, 0.00000000002139, 0.000000000000182, 0.000000000000016, 0.000000000000003,
+    0.0000000000000000, 0.0000000000000000, 0.0000000000000000, 0.0000000000000000, 0.0000000000000000, 0.0000000000000000, 0.0000000000000000,
+    0.0000000000000000, 0.0000000000000000, 0.0000000000000000, 0.0000000000000000, 0.0000000000000000, 0.0000000000000000, 0.0000000000000000,
+    0.000000000000000, 0.000000000000000, 0.000000000000000
+]
+
+sd_inc = np.array([np.sqrt(x) for x in sd_inc ])
+
+
+rj = [
+    0.64900577424075690, 0.9683904314183540, 0.9390964815815670, 0.993889774982390, 0.994375104422360, 0.993512094878450,
+    0.9963038890743960, 0.9964320179855030, 0.9989994221141350, 0.999401885875920, 0.9969486868928910, 0.99979287879130510, 0.999874761612530,
+    0.9992757219343280, 0.9999571256318320, 0.9999746376861920, 0.999984996943180, 0.9999911249430330, 0.99997449693180, 0.9999968943443440,
+    0.9999981625802170, 0.9999989132348460, 0.9999993571245470, 0.9999996197073060, 0.9999997750380220, 0.9999998669238400, 0.9999999127853600,
+    0.9999998669238400, 0.9999999212788560, 0.9999999534325410, 0.9999999724530400, 0.9999999837046080, 1.000000000000000
+]
+
+varj = [
+    259750.6595017640000000, 2317.5444693260100000, 218.8116744272230000, 123.2568955739400000, 103.8162228755290000, 117.8252162736920000,
+    167.4099570939330000, 111.4058598587400000, 12.0316268790710000, 5.2634075906253200, 2.3025531113674600, 1.0072848699970000, 0.4406512707038400,
+    0.1927691883739800, 0.0843296451631165, 0.036891213006948, 0.0161385897258605, 0.0070600574526185, 0.0030885233518517, 0.001351118820594,
+    0.00059106652986647, 0.0002585704263981, 0.0001131153401213, 0.0004948439272572, 0.000216474534239, 0.00009469988572, 0.000041427823957,
+    0.000094699888572, 0.000041427823957, 0.000018123195536, 0.000007928251717, 0.000003468327380, 0.000000000000000
+]
+
+lambda_cor = [0.6832833]
+
+dev_paid = [
+    1.82789848483053, 1.0346814102367, 1.00830392854992, 1.00463864364969, 1.00091753960757,
+    1.00032122866744, 1.00008228532368, 1.00002107805180, 1.00000539931361, 1.00000138307789,
+    1.0000035428660, 1.0000009075338, 1.0000002324721, 1.0000000595496, 1.0000000152541,
+    1.0000000039075, 1.0000000010009, 1.0000000002564, 1.0000000000657, 1.0000000000168,
+    1.0000000000043, 1.0000000000011, 1.00000000003, 1.00000000001, 1.00000000000,
+    1.00000000000, 1.00000000000, 1.00000000000, 1.00000000000, 1.00000000000
+]
+
+sigma_paid = [
+    688810.58230110200000, 2333.89322877154000, 103.61491829666800, 187.75839170687800,
+    6.65879938803239, 1.15390691022433, 0.1173638633544, 0.0119370718262, 0.00121411924441,
+    0.00012348803099, 0.00001255996383, 0.00000127747353, 0.0000012993179, 0.000001321536,
+    0.00000134413, 0.0000013671, 0.00000031390, 0.00000000141, 0.00000000014, 0.00000000001,
+    0.00000000000, 0.00000000000, 0.00000000000, 0.00000000000, 0.00000000000,
+    0.00000000000, 0.00000000000, 0.00000000000, 0.00000000000, 0.00000000000
+]
+
+sd_paid = [
+    0.02009730530713, 0.00004451713373, 0.00000223067132, 0.00000447563142,
+    0.00000017652593, 0.0000000820045, 0.0000000075808, 0.000000007131,
+    0.000000000662, 0.000000000060, 0.00000000000005, 0.00000000000000,
+    0.00000000000000, 0.00000000000000, 0.00000000000000, 0.00000000000000,
+    0.00000000000000, 0.00000000000000, 0.00000000000000, 0.00000000000000,
+    0.00000000000000, 0.00000000000000, 0.00000000000000, 0.00000000000000,
+    0.00000000000000, 0.00000000000000, 0.00000000000000, 0.00000000000000,
+    0.00000000000000, 0.00000000000000
+]
+
+sd_paid = np.array([np.sqrt(x) for x in sd_paid ])
+
+data_paid = [
+    [3903572, 3874936, 3867998, 4852703, 4848952, 4847981, 5422072, 5447573, 5447720, 5256371, 5256587, 5256587, 5256587, 5256587, 5256587, 5256587, 5256619, 5256619, 5256619, 5256619],
+    [55890, 98035.4, 109912.6, 108188.2, 112090, 116787.9, 136558.5, 136558.5, 136558.5, 136558.5, 136558.5, 136558.5, 136558.5, 136558.5, 136558.5, 136558.5, 136558.5, 136558.5, 136558.5,None],
+    [80731.88, 176848.3, 186332, 193856, 197584.9, 197673.7, 198315.4, 198315.4, 198315.4, 198315.4, 198315.4, 198315.4, 198315.4, 198315.4, 198315.4, 198315.4, 198315.4, 198315.4, None, None],
+    [73228.13, 165096.6, 176743.2, 180355.5, 182766.6, 182766.6, 182766.6, 182766.6, 182766.6, 182842.3, 182660.8, 182646.2, 182582.6, 181902.7, 181891.3, 181555, 180936.2, None, None, None],
+    [173698, 235633.4, 250170, 252106.4, 230693.4, 238547, 240382.4, 263101.6, 264976.5, 271657.4, 258499, 258499, 258499, 258499, 258499, 258499, None, None, None, None],
+    [78297.64, 176963.1, 198255.7, 242152.4, 244081.7, 247589.9, 247623, 247623, 247623, 247623, 229452.3, 229452.3, 229452.3, 229452.3, 229452.3, None, None, None, None, None],
+    [76413.39, 329533.3, 390661.2, 410241.9, 412659.7, 413225, 413225, 413225, 413227.7, 413261.1, 413261.1, 413261.1, 413261.1, 413261.1, None, None, None, None, None, None],
+    [551963.3, 2180708, 2363133, 2394248, 2394837, 2394001, 2394988, 2395866, 2396029, 2396613, 2396613, 2396613, 2396613, None, None, None, None, None, None, None],
+    [1596986, 4188406, 4407958, 4439303, 4441207, 4444269, 4444328, 4447328, 4447328, 4447328, 4447328, 4447328, None, None, None, None, None, None, None, None],
+    [1932272, 5075120, 5441841, 5535444, 5546237, 5546284, 5546797, 5546803, 5546838, 5546838, 5546842, None, None, None, None, None, None, None, None, None],
+    [2758400, 6609178, 6892165, 6962965, 6988408, 6982027, 6982214, 6982214, 6982231, 6982231, None, None, None, None, None, None, None, None, None, None],
+    [3221903, 6017914, 6228693, 6255852, 6259363, 6259688, 6259994, 6260049, 6261513, None, None, None, None, None, None, None, None, None, None, None],
+    [1898966, 3763935, 3878901, 3908671, 3965088, 3978496, 3984721, 3987701, None, None, None, None, None, None, None, None, None, None, None, None],
+    [2247802, 3874351, 3997086, 4031525, 4033500, 4040422, 4040422, None, None, None, None, None, None, None, None, None, None, None, None, None],
+    [2247426, 3947149, 3995255, 4043577, 4114631, 4115863, None, None, None, None, None, None, None, None, None, None, None, None, None, None],
+    [2734977, 4337525, 4408893, 4419517, 4424493, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None],
+    [3509601, 4734762, 4863496, 4884561, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None],
+    [4809957, 7724733, 7794985, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None],
+    [6763524, 10222134, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None],
+    [7988317, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]
+]
+
+
+import pandas as pd
+
+data_inc = [
+    [5538837, 4462179, 4484968, 4852703, 4848952, 4847981, 5422072, 5447573, 5447720, 5256371, 5256587, 5256587, 5256587, 5256587, 5256587, 5256587, 5256619, 5256619, 5256619, 5256619],
+    [69690.12, 98093.4, 109912.6, 108188.2, 112090, 136296.1, 136558.5, 136558.5, 136558.5, 136558.5, 136558.5, 136558.5, 136558.5, 136558.5, 136558.5, 136558.5, 136558.5, 136558.5, 136558.5,None],
+    [137174.7, 188820.6, 191492.2, 196261, 197976.6, 197673.7, 198315.4, 198315.4, 198315.4, 198315.4, 198315.4, 198315.4, 198315.4, 198315.4, 198315.4, 198315.4, 198315.4, 198315.4,None,None],
+    [147586.6, 178721.8, 177223, 180355.5, 182766.6, 183549.3, 182766.6, 182766.6, 182766.6, 182842.3, 182660.8, 182646.2, 182582.6, 181902.7, 181891.3, 181555, 180936.2, None, None, None],
+    [274257, 250513.5, 265651.5, 260938.2, 236318.6, 238547, 240382.4, 263101.6, 267646.4, 272936.7, 259858.1, 258499, 258499, 258499, 258499, 258499, None, None, None, None],
+    [180970.3, 217344.7, 208267.3, 242152.4, 244081.7, 247589.9, 247623, 247623, 247623, 247623, 229452.3, 229452.3, 229452.3, 229452.3, 229452.3, None, None, None, None, None],
+    [353396.9, 434740.7, 403551.6, 422992.2, 426140.9, 426964.7, 427773.3, 414051.9, 413227.7, 413261.1, 413261.1, 413261.1, 413261.1, 413261.1, None, None, None, None, None, None],
+    [1844961, 2355842, 2367757, 2411044, 2435111, 2436822, 2441253, 2425706, 2430076, 2399892, 2396613, 2396613, 2396613, None, None, None, None, None, None, None],
+    [3888868, 4435566, 4422297, 4434015, 4444649, 4464808, 4466145, 4468244, 4444736, 4444736, 4447328, 4447328, None, None, None, None, None, None, None, None],
+    [4397409, 5339654, 5550378, 5586796, 5582131, 5546872, 5547072, 5546836, 5546838, 5546839, 5546842, None, None, None, None, None, None, None, None, None],
+    [6174460, 6686366, 6984981, 7055344, 7028676, 7014165, 6982214, 6982231, 6982231, 6982231, None, None, None, None, None, None, None, None, None, None],
+    [5641920, 6148582, 6274596, 6301153, 6326158, 6327005, 6329497, 6331007, 6306513, None, None, None, None, None, None, None, None, None, None, None],
+    [3553785, 3870013, 3920959, 3961581, 3991020, 4111332, 4000586, 4003641, None, None, None, None, None, None, None, None, None, None, None, None],
+    [3642252, 3998934, 3994373, 4033769, 4062421, 4049448, 4040422, None, None, None, None, None, None, None, None, None, None, None, None, None],
+    [3759119, 4021100, 4021100, 4052971, 4116173, 4117413, None, None, None, None, None, None, None, None, None, None, None, None, None, None],
+    [3723866, 4423269, 4416159, 4424599, 4427223, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None],
+    [4121491, 4743796, 4688586, 4886111, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None],
+    [5482670, 7768307, 7811239, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None],
+    [7897566, 10635973, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None],
+    [8227743, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]
+]
+
+
+data_paid_np = np.array([
+    [np.nan if val is None else val for val in row]
+    for row in data_paid
+])
+
+data_inc_np = np.array([
+    [np.nan if val is None else val for val in row]
+    for row in data_inc
+])
+
+data_wagi = pd.read_csv("wagi_fin.csv", sep=";", decimal=",").iloc[:,1:]
+weights = data_wagi.to_numpy(dtype=np.float64)
+
+
+
+weights_p_i = np.array([
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+])
+
+from numba import njit
+from numba import njit
+import numpy as np
+
+
+def Dev_prem(data_paid_np: np.ndarray, data_wagi_np: np.ndarray):
+    nn = data_paid_np.shape[1]
+
+    licznik = np.array([
+        np.sum(data_paid_np[:nn - j - 1, j + 1] * data_wagi_np[:nn - j - 1, j])
+        for j in range(nn - 1)
+    ])
+
+    mianownik = np.array([
+        np.sum(data_paid_np[:nn - j - 1, j] * data_wagi_np[:nn - j - 1, j])
+        for j in range(nn - 1)
+    ])
+
+    with np.errstate(divide='ignore', invalid='ignore'):
+        dev = np.divide(licznik, mianownik)
+        dev[np.isnan(dev)] = 1  # gdy mianownik == 0
+
+    return dev
+
+
+def elementwise_division(data_paid_np: np.ndarray):
+    # Zakładamy, że data_paid_np ma shape (n_rows, n_cols)
+    prev = data_paid_np[:, :-1]
+    curr = data_paid_np[:, 1:]
+
+    with np.errstate(divide='ignore', invalid='ignore'):
+        result = np.divide(curr, prev)
+        result[~np.isfinite(result)] = 1
+
+    return result
+
+import numpy as np
+
+def calculate_sigma(p_ij: np.ndarray, l_ij: np.ndarray, w_ij: np.ndarray, dev_j: np.ndarray):
+    # Zakładamy: l_ij shape = (n_rows, n_cols), w_ij shape = (n_rows - 1, n_cols)
+    n_rows, n_cols = l_ij.shape
+    sigmas = []
+    sds = []
+
+
+    for j in range(n_cols):
+        dev = dev_j[j]
+
+        # Dopasuj długości przez obcięcie ostatniego wiersza
+        w = w_ij[:, j]          # shape (n_rows - 1,)
+        p = p_ij[:-1, j]        # shape (n_rows - 1,)
+        l = l_ij[:-1, j]        # shape (n_rows - 1,)
+
+
+        mask = ~np.isnan(w) & ~np.isnan(p) & ~np.isnan(l)
+
+        w = w[mask]
+        p = p[mask]
+        l = l[mask]
+
+        if len(w) > 1:
+            diff = l - dev
+            numerator = np.sum(w * p * diff ** 2)
+            denominator = np.sum(w)
+            denominator_sd = np.sum(w * p)
+            sigma = np.sqrt(numerator / (denominator - 1)) if denominator > 1 else 0
+            sd_val = sigma / np.sqrt(denominator_sd) if denominator_sd > 0 else 0
+        else:
+            sigma = 0
+            sd_val = 0
+
+        sigmas.append(sigma)
+        sds.append(sd_val)
+
+    return [sigmas, sds]
+
+
+#dev_j = Dev_prem(data_paid_np,data_wagi_np)
+#l_ij = elementwise_division(data_paid_np)
+#sigma_j = calculate_sigma(data_paid_np,l_ij,data_wagi_np,dev_j)
+
+##############
+# Dopasowanie krzywych
+##############
+
+def choose_value_list(vec_input: np.ndarray, vec_wykluczenia: np.ndarray) -> np.ndarray:
+    return vec_input[vec_wykluczenia - 1]
+
+def wsp_w_k_sqr(f_input, se_factor, dopasowanie, n):
+    if dopasowanie == 'factor_CL':
+        w_k_sqr = 1 / np.sqrt(np.log(1 + (se_factor / (f_input - 1) ** 2)))
+    elif dopasowanie == 'variance_CL':
+        w_k_sqr = np.array([n - 1 - k for k in range(len(f_input))])
+    elif dopasowanie == 'factor_P_to_I':
+        w_k_sqr = np.ones(len(f_input) + 1)
+    elif dopasowanie == 'variance_P_to_I':
+        w_k_sqr = np.ones(len(f_input) + 1)
+    elif dopasowanie == 'factor_LR':
+        w_k_sqr = 1 / np.sqrt(np.log(1 + (se_factor / f_input ** 2)))
+    elif dopasowanie == 'variance_LR':
+        w_k_sqr = np.array([n - k for k in range(1, len(f_input) + 1)])
+    else:
+        raise ValueError(f"Nieznany tryb dopasowania: {dopasowanie}")
+
+    return w_k_sqr
+
+import numpy as np
+
+def fit_curve(data_input, sd_input, x_k, dopasowanie, n):
+    se_factor = np.array(sd_input[:len(data_input)]) ** 2
+    w_k_sqr = wsp_w_k_sqr(np.array(data_input), se_factor, dopasowanie, n)
+
+    data_input = np.array(data_input)
+
+    if dopasowanie == 'factor_CL':
+        factor_input = np.log(data_input - 1)
+    elif dopasowanie == 'variance_CL':
+        factor_input = np.log(data_input)  # tu data_input to sigma
+    elif dopasowanie == 'factor_P_to_I':
+        factor_input = np.log(1 - data_input)
+    elif dopasowanie == 'variance_P_to_I':
+        factor_input = np.log(data_input)
+    elif dopasowanie in ('factor_LR', 'variance_LR'):
+        factor_input = np.log(data_input)
+    else:
+        raise ValueError(f"Nieznane dopasowanie: {dopasowanie}")
+
+    x_k = np.array(x_k)
+    factor_input = np.array(factor_input)
+
+    A = np.sum(w_k_sqr)
+    A_x = np.sum(w_k_sqr * x_k)
+    A_xx = np.sum(w_k_sqr * x_k**2)
+    A_y = np.sum(w_k_sqr * factor_input)
+    A_xy = np.sum(w_k_sqr * x_k * factor_input)
+
+    Delta = A * A_xx - A_x**2
+
+    a = (A * A_xy - A_x * A_y) / Delta
+    b = (A_xx * A_y - A_x * A_xy) / Delta
+
+    return [a, b]
+
+import numpy as np
+
+def wspolczynnik_reg(a, b, k_start, k_stop, dopasowanie):
+    k_values = np.arange(k_start, k_stop + 1)
+    exponent = np.exp(a * k_values + b)
+
+    if dopasowanie == 'factor_CL':
+        wartosci_reg = 1 + exponent
+    elif dopasowanie in ('variance_CL', 'variance_P_to_I', 'factor_LR', 'variance_LR'):
+        wartosci_reg = exponent
+    elif dopasowanie == 'factor_P_to_I':
+        wartosci_reg = 1 - exponent
+    else:
+        raise ValueError(f"Nieznane dopasowanie: {dopasowanie}")
+
+    return wartosci_reg
+
+
+
+
+
+
+
+
+def run_simulation_numba(dev_paid, sigma_paid, sd_paid, dev_inc, sigma_inc, sd_inc,
+                         rj, varj, lambda_cor, data_paid_np, data_inc_np,weights_np,
+                         sim_total=1, batch_sim=1, main_seed=42):
+
+    mm, n_cols_orig = data_paid_np.shape
+    n_dev = len(dev_paid)
+
+    results = np.zeros(sim_total)
+    num_batches = sim_total // batch_sim
+
+    for batch in range(num_batches):
+        seed = main_seed + batch
+        np.random.seed(seed)
+
+        normal_shocks = np.random.normal(loc=0.0, scale=1.0, size=(batch_sim, mm, n_dev))
+
+        mu_part = np.empty((batch_sim, n_dev))
+        mu_part_inc = np.empty((batch_sim, n_dev))
+        sigma_part = np.empty((batch_sim, n_dev))
+        sigma_part_inc = np.empty((batch_sim, n_dev))
+
+        for jj in range(n_dev):
+            mu_part[:, jj] = np.random.normal(loc=dev_paid[jj], scale=sd_paid[jj], size=batch_sim)
+            mu_part_inc[:, jj] = np.random.normal(loc=dev_inc[jj], scale=sd_inc[jj], size=batch_sim)
+
+            df = max(1, mm - jj - 1)
+            chi_list = np.random.chisquare(df, size=batch_sim)
+
+            for s in range(batch_sim):
+                sigma_part[s, jj] = (chi_list[s] * sigma_paid[jj]) / df
+                sigma_part_inc[s, jj] = (chi_list[s] * sigma_inc[jj]) / df
+
+        for i in range(batch_sim):
+            m_i = mu_part[i, :]
+            sigma_i = sigma_part[i, :]
+            m_i_inc = mu_part_inc[i, :]
+            sigma_i_inc = sigma_part_inc[i, :]
+
+            data_paid_copy = data_paid_np.copy()
+            data_incurred_to_paid_copy = data_inc_np.copy()
+            data_incurred_copy = data_inc_np.copy()
+
+            data_paid_to_one = data_paid_np.copy()
+            data_incurred_to_one = data_inc_np.copy()
+
+            n_cols_current = data_paid_copy.shape[1]
+            if n_cols_current < n_dev + 1:
+                extra_cols = (n_dev + 1) - n_cols_current
+                data_paid_copy = np.concatenate((data_paid_copy, np.zeros((mm, extra_cols))), axis=1)
+                data_incurred_copy = np.concatenate((data_incurred_copy, np.zeros((mm, extra_cols))), axis=1)
+                data_incurred_to_paid_copy = np.concatenate((data_incurred_to_paid_copy, np.zeros((mm, extra_cols))), axis=1)
+
+                data_paid_to_one = np.concatenate((data_paid_to_one, np.zeros((mm, extra_cols))), axis=1)
+                data_incurred_to_one = np.concatenate((data_incurred_to_one, np.zeros((mm, extra_cols))), axis=1)
+
+                n_cols_current = data_paid_copy.shape[1]
+
+            for j in range(n_dev):
+                max_ind_row = max(1, mm - j)
+                for r in range(max_ind_row - 1, mm):
+                    base_val = data_paid_copy[r, j]
+                    base_val_inc = data_incurred_copy[r, j]
+
+                    if base_val == 0 or base_val_inc == 0:
+                        continue
+
+                    var_ij = sigma_i[j] / base_val
+                    var_ij_inc = sigma_i_inc[j] / base_val_inc
+
+                    m_sq = m_i[j] * m_i[j]
+                    m_sq_inc = m_i_inc[j] * m_i_inc[j]
+
+                    denom = np.sqrt(m_sq + var_ij)
+                    denom_inc = np.sqrt(m_sq_inc + var_ij_inc)
+
+                    if denom == 0.0 or m_sq == 0.0 or denom_inc == 0.0 or m_sq_inc == 0.0:
+                        continue
+
+                    lmean = np.log(m_sq / denom)
+                    lstdev = np.sqrt(np.log(1 + (var_ij / m_sq)))
+
+                    lmean_inc = np.log(m_sq_inc / denom_inc)
+                    lstdev_inc = np.sqrt(np.log(1 + (var_ij_inc / m_sq_inc)))
+
+                    cl_ij = np.random.lognormal(lmean, lstdev)
+                    cl_ij_inc = np.random.lognormal(lmean_inc, lstdev_inc)
+                    if (np.sqrt(varj[j] / (base_val_inc ))<0.00001):
+                        res_before = 0
+                    else:
+                        res_before = (((base_val / base_val_inc) - rj[j])/(np.sqrt(varj[j] / (base_val_inc ))))
+                    data_paid_copy[r, j + 1] = base_val * cl_ij
+                    data_incurred_copy[r, j + 1] = base_val_inc * cl_ij_inc
+
+                    val_paid = base_val_inc * cl_ij_inc * (
+                        rj[j + 1]
+                        +
+                        (np.sqrt(varj[j + 1] / (base_val_inc * cl_ij_inc))) *
+                        (normal_shocks[i, r, j] + res_before * lambda_cor[0])
+                    )
+                    data_incurred_to_paid_copy[r, j + 1] = val_paid
+
+                    if r == mm - j - 1:
+                        data_paid_to_one[r, j + 1] = val_paid
+                        data_incurred_to_one[r, j + 1] = base_val_inc * cl_ij_inc
+
+            data_paid_to_one_new = data_paid_to_one[:, 1:(n_cols_orig+1)]
+            data_incurred_to_one_new = data_incurred_to_one[:, 1:(n_cols_orig+1)]
+
+            triangle_simulated = data_incurred_to_one_new[:, 1:(n_cols_orig+1)]
+            dev_j = Dev_prem(data_inc_np, weights_np)
+            pd.DataFrame(data_inc_np).to_excel("dddddd.xlsx")
+            l_ij = elementwise_division(data_inc_np)
+            sigma_all = calculate_sigma(data_inc_np, l_ij, weights_np, dev_j)
+            sd_sim = np.array(sigma_all[1])
+            print(dev_j)
+            u_i = data_incurred_to_paid_copy[:, n_cols_current - 1]
+            results[batch * batch_sim + i] = np.nansum(u_i)
+
+    return results
+
+
+sim_total = 1
+batch_sim = 1
+# Run the simulation using numba-accelerated function
+sim_results_numba = run_simulation_numba(
+    dev_paid, sigma_paid, sd_paid,
+    dev_inc,  sigma_inc,  sd_inc,
+    rj, varj, lambda_cor,
+    data_paid_np, data_inc_np, weights,
+    sim_total=sim_total, batch_sim=batch_sim, main_seed=202260011
+)
+
+results_cale = 1.7749 * (sim_results_numba - 82687545)
+
+print(f"📊 Median: {np.median(results_cale):,.2f}")
+print(f"📊 SD: {np.std(results_cale):,.2f}")
+
+for q in [0.75, 0.9, 0.95, 0.99, 0.995]:
+    print(f"Quantile {q}: {np.quantile(results_cale, q):,.2f}")
+
+print(f"Mean: {np.mean(results_cale):,.2f}")
+print(f"Difference (Quantile - Mean): {np.quantile(results_cale, 0.995) - np.mean(results_cale):,.2f}")
