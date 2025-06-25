@@ -1,12 +1,30 @@
-if not run_inside_numba:
-    a, b = compute_curve(dev_choose, sd_choose, ind_choose)
 
-def compute_curve(dev_choose, sd_choose, ind_choose):
-    a, b = fit_curve(
-        dev_choose,
-        sd_choose,
-        np.array(ind_choose) + 1,
-        'factor_CL',
-        -0.99
-    )
-    return float(a), float(b)
+def triangle_forward_np_p_i(triangle_data: np.ndarray, f: np.ndarray,rj: np.ndarray) -> np.ndarray:
+    mm, nn = triangle_data.shape
+    n_steps = len(f)
+    required_cols = n_steps + 1
+
+    if nn < required_cols:
+        extra_cols = required_cols - nn
+        triangle_extended = np.full((mm, required_cols), np.nan)
+        triangle_extended[:, :nn] = triangle_data
+    else:
+        triangle_extended = triangle_data.copy()
+
+    for j in range(n_steps):
+        max_ind_row = max(0, mm - j - 1)
+        for i in range(max_ind_row, mm):
+            if np.isnan(triangle_extended[i, j]):
+                continue
+            triangle_extended[i, j + 1] = triangle_extended[i, j] * f[j] 
+
+    return triangle_extended
+
+
+
+
+##### deterministyczne obliczenia
+
+
+paid_final = triangle_forward_np_p_i(data_inc_np,np.array(dev_inc),rj)
+print(np.sum(paid_final[:,30]))
