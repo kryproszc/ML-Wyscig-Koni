@@ -1,8 +1,2 @@
-def choose_value_list(vec_input: np.ndarray, vec_wykluczenia: np.ndarray, a: float, b: float):
-    selected_indices = vec_wykluczenia - 1
-    selected_values = vec_input[selected_indices]
-    mask = (selected_values >= a) & (selected_values <= b)
-    valid_values = selected_values[mask]
-    valid_indices = selected_indices[mask]
-
-    return valid_values, valid_indices
+all_incurred_triangles = np.zeros((sim_total, mm, n_cols_orig))
+all_incurred_triangles[batch * batch_sim + i] = data_incurred_to_one_new
