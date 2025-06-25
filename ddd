@@ -1,45 +1,12 @@
-import numpy as np
-from numba import njit
+if not run_inside_numba:
+    a, b = compute_curve(dev_choose, sd_choose, ind_choose)
 
-@njit
-def Dev_prem(data_paid_np: np.ndarray, data_wagi_np: np.ndarray):
-    nn = data_paid_np.shape[1]
-    licznik = np.empty(nn - 1)
-    mianownik = np.empty(nn - 1)
-
-    for j in range(nn - 1):
-        suma_licznik = 0.0
-        suma_mianownik = 0.0
-        for i in range(nn - j - 1):
-            suma_licznik += data_paid_np[i, j + 1] * data_wagi_np[i, j]
-            suma_mianownik += data_paid_np[i, j] * data_wagi_np[i, j]
-        licznik[j] = suma_licznik
-        mianownik[j] = suma_mianownik
-
-    dev = np.empty(nn - 1)
-    for j in range(nn - 1):
-        if mianownik[j] != 0.0:
-            dev[j] = licznik[j] / mianownik[j]
-        else:
-            dev[j] = 1.0  # domyślna wartość gdy brak danych
-
-    return dev
-
-@njit
-def elementwise_division(data_paid_np: np.ndarray):
-    n_rows, n_cols = data_paid_np.shape
-    result = np.empty((n_rows, n_cols - 1))
-
-    for i in range(n_rows):
-        for j in range(n_cols - 1):
-            denom = data_paid_np[i, j]
-            if denom != 0.0 and np.isfinite(denom):
-                val = data_paid_np[i, j + 1] / denom
-                if np.isfinite(val):
-                    result[i, j] = val
-                else:
-                    result[i, j] = 1.0
-            else:
-                result[i, j] = 1.0
-
-    return result
+def compute_curve(dev_choose, sd_choose, ind_choose):
+    a, b = fit_curve(
+        dev_choose,
+        sd_choose,
+        np.array(ind_choose) + 1,
+        'factor_CL',
+        -0.99
+    )
+    return float(a), float(b)
