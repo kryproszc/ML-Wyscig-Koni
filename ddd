@@ -1,2 +1,9 @@
-all_incurred_triangles = np.zeros((sim_total, mm, n_cols_orig))
-all_incurred_triangles[batch * batch_sim + i] = data_incurred_to_one_new
+import time
+
+start_time = time.time()
+
+results, all_incurred_triangles = run_simulation_numba(...)
+
+end_time = time.time()
+execution_time = end_time - start_time
+print(f"Czas wykonania: {execution_time:.2f} sekund")
