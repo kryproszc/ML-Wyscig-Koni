@@ -16,21 +16,21 @@ def extract_sector_series_from_column_b(file_path, sheet_name, sector_name):
     for i, row in df.iterrows():
         cell = str(row[1]).strip() if pd.notna(row[1]) else ""
 
-        # Jeśli trafimy na nagłówek (np. "CL Factor")
+        # Start a new section
         if cell in headers:
             current_header = cell
             collecting = True
             continue
 
-        if collecting and current_header:
-            # Jeśli znowu trafimy na nagłówek — koniec poprzedniej sekcji
-            if cell in headers:
-                current_header = cell
-                continue
+        # If we're collecting and hit another header line — stop collecting
+        if collecting and cell in headers:
+            collecting = False
+            current_header = None
+            continue
 
-            # Sprawdź, czy to nasz sektor
+        if collecting and current_header:
             if cell == sector_name:
-                # Od kolumny C (index 2) w prawo, dopóki nie ma pustych
+                # Collect values to the right
                 values = []
                 for val in row[2:]:
                     if pd.isna(val):
@@ -39,11 +39,3 @@ def extract_sector_series_from_column_b(file_path, sheet_name, sector_name):
                 result[current_header] = values
 
     return result
-
-
-file_path = 'twoj_plik.xlsx'
-sheet_name = '2a. Chain-Ladder Paid'
-sector_name = 'FIN'
-
-values = extract_sector_series_from_column_b(file_path, sheet_name, sector_name)
-print(values)
