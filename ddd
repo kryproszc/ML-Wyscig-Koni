@@ -1,8 +1,22 @@
-def choose_value_list(vec_input: np.ndarray, vec_wykluczenia: np.ndarray, a: float, b: float):
-    selected_indices = vec_wykluczenia - 1
-    selected_values = vec_input[selected_indices]
-    mask = (selected_values > a) & (selected_values < b)
-    valid_values = selected_values[mask]
-    valid_indices = selected_indices[mask]
+@njit
+def choose_value_list(vec_input, vec_wykluczenia, a, b):
+    count = 0
+    for k in range(len(vec_wykluczenia)):
+        idx = vec_wykluczenia[k] - 1
+        val = vec_input[idx]
+        if a < val < b:
+            count += 1
 
-    return valid_values, valid_indices
+    out_vals = np.empty(count)
+    out_inds = np.empty(count, dtype=np.int64)
+
+    pos = 0
+    for k in range(len(vec_wykluczenia)):
+        idx = vec_wykluczenia[k] - 1
+        val = vec_input[idx]
+        if a < val < b:
+            out_vals[pos] = val
+            out_inds[pos] = idx
+            pos += 1
+
+    return out_vals, out_inds
