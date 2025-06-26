@@ -1,1 +1,4 @@
-x_k = ind_choose + 1 
+    n = len(data_input)
+    print("data_input:", data_input)
+    print("sd_input:", sd_input)
+    print("x_k:", x_k)
