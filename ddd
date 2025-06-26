@@ -1,4 +1,23 @@
-    n = len(data_input)
-    print("data_input:", data_input)
-    print("sd_input:", sd_input)
-    print("x_k:", x_k)
+    def triangle_forward_np(data, f, k_forward_start):
+        data = data.copy()
+        mm, nn = data.shape
+
+        if len(f) > mm:
+            # Dodaj kolumny z NaN, jeśli potrzeba
+            pad_width = len(f) + 1 - nn
+            if pad_width > 0:
+                data = np.hstack((data, np.full((mm, pad_width), np.nan)))
+        print(pd.DataFrame(data))
+        for j in range(k_forward_start - 1, len(f)):
+            max_ind_row = max(0, mm - j - 1)
+            for i in range(max_ind_row, mm):
+                data[i, j + 1] = data[i, j] * f[j]
+        print(pd.DataFrame(data))
+
+        last_col = data[:, -1]
+        result = np.nansum(last_col)
+
+        return result
+
+
+    print(triangle_forward_np(data_paid_np, dev_arr, 0))
