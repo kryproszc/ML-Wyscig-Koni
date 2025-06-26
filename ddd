@@ -1,12 +1,17 @@
-
-    def triangle_forward_np(data, f, k_forward_start):
+    def triangle_forward_np(data, f, k_forward_start, discount_factors):
         data = data.copy()
         mm, nn = data.shape
 
+        # Zachowujemy oryginalną pierwszą kolumnę
+        base_col = data[:, 0].copy()
+
+        # Rozszerz dane, jeśli trzeba
         if len(f) > mm:
             pad_width = len(f) + 1 - nn
             if pad_width > 0:
                 data = np.hstack((data, np.full((mm, pad_width), np.nan)))
+
+        # Projekcja forward
         for j in range(k_forward_start - 1, len(f)):
             max_ind_row = max(0, mm - j - 1)
             for i in range(max_ind_row, mm):
@@ -14,38 +19,40 @@
 
         cols_tmp = data.shape[1]
 
-        tri_proj = np.empty((mm, cols_tmp + 1))
-        tri_proj[:, 0] = data[:, 0]
-        for r in range(mm):
-            for c in range(cols_tmp):
-                tri_proj[r, c + 1] = data[r, c]
+        # TRI_PROJ: pierwsza kolumna = base_col
+        tri_proj = np.full((mm, cols_tmp + 1), np.nan)
+        tri_proj[:, 0] = base_col
+        tri_proj[:, 1:] = data
 
+        # Różnice
         inc_proj = tri_proj[:, 1:] - tri_proj[:, :-1]
-        inc_disc = np.empty_like(tri_proj)
-        inc_disc[:, 0] = tri_proj[:, 0]
-        for r in range(mm):
-            for c in range(1, tri_proj.shape[1]):
-                inc_disc[r, c] = inc_proj[r, c - 1]
+        print("pd.DataFrame(inc_proj)")
+        print(pd.DataFrame(inc_proj))
 
+        # Dyskontowane różnice
+        inc_disc = np.full_like(tri_proj, np.nan)
+        inc_disc[:, 0] = base_col
+        inc_disc[:, 1:] = inc_proj
+
+        print("pd.DataFrame(inc_disc).to_string()")
+        print(pd.DataFrame(inc_disc).to_string())
+
+        # Dyskontowanie przyrostów
         for rr in range(mm - 1, -1, -1):
             offset = mm - 1 - rr
-            for cc in range(offset + 1, tri_proj.shape[1]):
-                idx = cc - (offset + 1)
-                if idx < len(discount_factors):
+            for cc in range(offset + 2, tri_proj.shape[1]):  # +2 = skip base_col and first diff
+                idx = cc - (offset + 2)
+                if idx < len(discount_factors) and not np.isnan(inc_disc[rr, cc]):
                     inc_disc[rr, cc] /= discount_factors[idx]
 
+        # Sumowanie skumulowane
         cum_disc = inc_disc.copy()
         for r in range(mm):
             for c in range(1, tri_proj.shape[1]):
                 cum_disc[r, c] += cum_disc[r, c - 1]
 
-        ult_gross_disc = np.sum(cum_disc[:, -1])
+        ult_gross_disc = np.nansum(cum_disc[:, -1])
+        return ult_gross_disc
 
 
-        last_col = data[:, -1]
-        result = np.nansum(ult_gross_disc)
-
-        return result
-
-
-    print(triangle_forward_np(data_paid_np, dev_arr, 0))
+    print(triangle_forward_np(data_paid_np, dev_arr, 0,discount_factors))
