@@ -1,30 +1,49 @@
+import pandas as pd
 
-def triangle_forward_np_p_i(triangle_data: np.ndarray, f: np.ndarray,rj: np.ndarray) -> np.ndarray:
-    mm, nn = triangle_data.shape
-    n_steps = len(f)
-    required_cols = n_steps + 1
+def extract_sector_series_from_column_b(file_path, sheet_name, sector_name):
+    df = pd.read_excel(file_path, sheet_name=sheet_name, header=None)
 
-    if nn < required_cols:
-        extra_cols = required_cols - nn
-        triangle_extended = np.full((mm, required_cols), np.nan)
-        triangle_extended[:, :nn] = triangle_data
-    else:
-        triangle_extended = triangle_data.copy()
+    result = {
+        'CL Factor': [],
+        'sigma^2 CL': [],
+        'estimation error CL Factor': []
+    }
 
-    for j in range(n_steps):
-        max_ind_row = max(0, mm - j - 1)
-        for i in range(max_ind_row, mm):
-            if np.isnan(triangle_extended[i, j]):
+    headers = list(result.keys())
+    current_header = None
+    collecting = False
+
+    for i, row in df.iterrows():
+        cell = str(row[1]).strip() if pd.notna(row[1]) else ""
+
+        # Jeśli trafimy na nagłówek (np. "CL Factor")
+        if cell in headers:
+            current_header = cell
+            collecting = True
+            continue
+
+        if collecting and current_header:
+            # Jeśli znowu trafimy na nagłówek — koniec poprzedniej sekcji
+            if cell in headers:
+                current_header = cell
                 continue
-            triangle_extended[i, j + 1] = triangle_extended[i, j] * f[j] 
 
-    return triangle_extended
+            # Sprawdź, czy to nasz sektor
+            if cell == sector_name:
+                # Od kolumny C (index 2) w prawo, dopóki nie ma pustych
+                values = []
+                for val in row[2:]:
+                    if pd.isna(val):
+                        break
+                    values.append(val)
+                result[current_header] = values
+
+    return result
 
 
+file_path = 'twoj_plik.xlsx'
+sheet_name = '2a. Chain-Ladder Paid'
+sector_name = 'FIN'
 
-
-##### deterministyczne obliczenia
-
-
-paid_final = triangle_forward_np_p_i(data_inc_np,np.array(dev_inc),rj)
-print(np.sum(paid_final[:,30]))
+values = extract_sector_series_from_column_b(file_path, sheet_name, sector_name)
+print(values)
