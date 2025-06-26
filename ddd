@@ -1,1 +1,65 @@
-warnings.simplefilter(action='ignore', category=FutureWarning)
+import numpy as np
+import pandas as pd
+
+from cl_simulator import StochasticTriangleSimulator
+
+
+def _read_csv_float(path: str) -> pd.DataFrame:
+    """Utility helper: read Polish‑style CSV (; separator, , decimal)."""
+    return pd.read_csv(path, sep=";", decimal=",")
+
+
+if __name__ == "__main__":
+    pd.options.display.float_format = "{:12.5e}".format
+
+    # ---- 1. Load data ------------------------------------------------------
+    wsp = _read_csv_float("wsp_csv.csv")
+    dev_arr = wsp.iloc[0, 0:59].to_numpy(dtype=np.float64)
+    sigma_j_arr = wsp.iloc[1, 0:59].to_numpy(dtype=np.float64)
+    sd_arr = wsp.iloc[2, 0:59].to_numpy(dtype=np.float64)
+
+    data_paid_df = _read_csv_float("data_input.csv").iloc[:, 1:]
+    data_paid_np = data_paid_df.to_numpy(dtype=np.float64)
+
+    data_wagi_df = _read_csv_float("wagi.csv").iloc[:, 1:]
+    data_wagi_np = data_wagi_df.to_numpy(dtype=np.float64)
+
+    discount_factors = np.array([
+        1.0301, 1.0991, 1.1749, 1.2562, 1.3416, 1.4310, 1.5250, 1.6243,
+        1.7304, 1.8439, 1.9630, 2.0852, 2.2095, 2.3360, 2.4649, 2.5960,
+        2.7293, 2.8649, 3.0027, 3.1432, 3.2863, 3.4322, 3.5811, 3.7328,
+        3.8876, 4.0467, 4.2093, 4.3755, 4.5462, 4.7211, 4.9004, 5.0851,
+        5.2750, 5.4703, 5.6716, 5.8782, 6.0916, 6.3111, 6.5372, 6.7715,
+        7.0135, 7.2622, 7.5179, 7.7826, 8.0569, 8.3398, 8.6318, 8.9333,
+        9.2450, 9.5673, 9.9010, 10.2467, 10.6026, 10.9719, 11.3523, 11.7444,
+        12.1520, 12.5726, 13.0104, 13.4628, 13.9263, 14.4053, 14.9050, 15.4220,
+        15.9525, 16.5016, 17.0757, 17.6651, 18.2702, 18.9037,
+    ])
+
+    # ---- 2. Simulation parameters -----------------------------------------
+    wykluczenia = [1, 2, 3, 4, 5, 6, 7]
+    Poz_CL = 7
+    il_ogon = 42
+    net_to_gross = 0.767576629939175
+
+    # ---- 3. Run simulation -------------------------------------------------
+    sim = StochasticTriangleSimulator(
+        data_paid=data_paid_np,
+        data_wagi=data_wagi_np,
+        dev=dev_arr,
+        sigma_j=sigma_j_arr,
+        sd=sd_arr,
+        discount_factors=discount_factors,
+        net_to_gross=net_to_gross,
+        wykluczenia=wykluczenia,
+        Poz_CL=Poz_CL,
+        il_ogon=il_ogon,
+    )
+
+    sim.run(sim_total=100_000, batch_sim=1_000, seed=202260011)
+
+    # ---- 4. Results --------------------------------------------------------
+    ultimate_base = [4_232_149_669, 4_075_793_358, 3_894_728_405]
+    factor = 1.1392
+
+    sim.summary(ultimate_base=ultimate_base, factor=factor)
