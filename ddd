@@ -1,1 +1,136 @@
-s
+
+@njit()
+def stochastic_triangle_forward_numba_batched(
+    data_paid,
+    sigma_j,
+    dev,
+    sd,
+    wagi_trimmed,
+    wykluczenia,
+    Poz_CL,
+    il_ogon,
+    discount_factors,
+    net_to_gross,
+    sim_total=100_000,
+    batch_sim=1_000,
+    ultimate_param_resrisk=0.0,
+    main_seed=202260011,
+):
+    """Zwraca macierz (sim_total, 3): gross, gross_disc, net_disc."""
+    latest = sum_reverse_diagonal(data_paid)
+    mm, n_cols_orig = data_paid.shape
+    n_dev = len(dev)
+    results = np.zeros((sim_total, 3))
+    n_batches = sim_total // batch_sim
+
+    for batch_idx in prange(n_batches):  # równoległy loop index
+        np.random.seed(main_seed + batch_idx)
+
+        mu_part = np.empty((batch_sim, n_dev))
+        sigma_part = np.empty((batch_sim, n_dev))
+
+        # ---- parameter risk
+        for j in range(n_dev):
+            mu_part[:, j] = np.random.normal(dev[j], sd[j], batch_sim)
+            df = max(1, mm - j - 1)
+            chi = np.random.chisquare(df, batch_sim)
+            for s in range(batch_sim):
+                sigma_part[s, j] = (np.floor(chi[s]) * sigma_j[j]) / df
+
+        # ---- process risk
+        for i in range(batch_sim):
+            m_i = mu_part[i]
+            s_i = sigma_part[i]
+
+            n_cols_target = n_dev + 1
+            tri_copy = np.zeros((mm, n_cols_target))
+            new_tri = np.zeros((mm, n_cols_target))
+            for r in range(mm):
+                for c in range(n_cols_orig):
+                    v = data_paid[r, c]
+                    tri_copy[r, c] = v
+                    new_tri[r, c] = v
+
+            for j in range(n_dev):
+                max_row = max(1, mm - j)
+                for r in range(max_row - 1, mm):
+                    base = tri_copy[r, j]
+                    if base == 0.0:
+                        continue
+                    var_ij = s_i[j] / base
+                    m2 = m_i[j] ** 2
+                    denom = np.sqrt(m2 + var_ij)
+                    if denom == 0.0 or m2 == 0.0:
+                        continue
+                    ln_mean = np.log(m2 / denom)
+                    ln_sd = np.sqrt(np.log(1.0 + var_ij / m2))
+                    cl_factor = np.random.lognormal(ln_mean, ln_sd)
+                    tri_copy[r, j + 1] = base * cl_factor
+                    if r == mm - j - 1:
+                        cl_adj = 1
+                        if dev[j] - 2 * np.sqrt(sd[j]) <= cl_factor <= dev[j] + 2 * np.sqrt(sd[j]):
+                            cl_adj = cl_factor
+                        elif dev[j] - 3 * np.sqrt(sd[j]) <= cl_factor <= dev[j] - 2 * np.sqrt(sd[j]) or dev[j] +2 * np.sqrt(sd[j]) <= cl_factor <= dev[j] + 3 * np.sqrt(sd[j]):
+                            cl_adj = 0.5* cl_factor
+
+                        else:
+                            cl_adj = 0.0 * cl_factor
+                        new_tri[r, j + 1] = base * cl_adj
+
+            tri_sim = new_tri[:, 1 : n_cols_orig + 1]
+            dev_j = Dev_prem(tri_sim, wagi_trimmed)
+            l_ij = elementwise_division(tri_sim)
+            sigma_all = calculate_sigma(tri_sim, l_ij, wagi_trimmed, dev_j)
+            sd_sim = sigma_all[1]
+
+            dev_sel,ind_choode = choose_value_list(dev_j, np.array(wykluczenia),1,10)
+            x_k = ind_choode+1
+            sd_sel = sd_sim[ind_choode]
+            a_coef, b_coef = fit_curve_factor_cl(dev_sel, sd_sel, x_k)
+
+
+            tail_len = len(dev_j) + il_ogon - Poz_CL
+            tail_factors = wspolczynnik_reg_factor_cl(a_coef, b_coef, Poz_CL + 1, len(dev_j) + il_ogon - 1)
+
+            vec_f = np.empty(len(dev_j) + il_ogon)
+            for v in range(Poz_CL):
+                vec_f[v] = dev_j[v]
+            for v in range(tail_len-1):
+                vec_f[Poz_CL + v] = tail_factors[v]
+
+            # Upewniamy się, że nie wychodzimy poza granice tail_factors
+            n_tail = min(len(tail_factors), len(vec_f) - Poz_CL)
+            for v in range(n_tail):
+                vec_f[Poz_CL + v] = tail_factors[v]
+            tri_proj_tmp = triangle_forward_one_np(tri_sim, vec_f, 1)[:,:-1]
+
+            base_col = tri_proj_tmp[:, 0].copy()
+
+            cols_tmp = tri_proj_tmp.shape[1]
+            tri_proj = np.full((mm, cols_tmp + 1), np.nan)
+            tri_proj[:, 0] = base_col
+            tri_proj[:, 1:] = tri_proj_tmp
+
+            # Liczymy przyrosty (różnice kolumna po kolumnie)
+            inc_proj = tri_proj[:, 1:] - tri_proj[:, :-1]
+            inc_proj[:, 0] = base_col
+            total = np.nansum(inc_proj)
+
+            # Dyskontujemy tylko wartości na prawo od odwrotnej przekątnej
+            for rr in range(mm - 1, -1, -1):
+                offset = mm - 1 - rr
+                for cc in range(offset + 1, inc_proj.shape[1]):
+                    idx = cc - (offset + 1)
+                    if idx < len(discount_factors) and not np.isnan(inc_proj[rr, cc]):
+                        inc_proj[rr, cc] /= discount_factors[idx]
+
+            ult_gross_disc = np.nansum(inc_proj)
+            ult_net_disc = latest + (ult_gross_disc - latest) * net_to_gross
+            ult_gross = np.sum(tri_copy[:, n_cols_target - 1])
+
+            idx_out = int(batch_idx * batch_sim + i)  # cast na int
+            results[idx_out, 0] = ult_gross
+            results[idx_out, 1] = ult_gross_disc
+            results[idx_out, 2] = ult_net_disc
+
+    return results
