@@ -17,42 +17,38 @@
             for i in range(max_ind_row, mm):
                 data[i, j + 1] = data[i, j] * f[j]
 
+        # Tworzenie trójkąta z bazową kolumną
         cols_tmp = data.shape[1]
-
-        # TRI_PROJ: pierwsza kolumna = base_col
         tri_proj = np.full((mm, cols_tmp + 1), np.nan)
         tri_proj[:, 0] = base_col
         tri_proj[:, 1:] = data
 
-        # Różnice
+
+        print(pd.DataFrame(data).to_string())
+        # Liczymy przyrosty (różnice kolumna po kolumnie)
         inc_proj = tri_proj[:, 1:] - tri_proj[:, :-1]
-        print("pd.DataFrame(inc_proj)")
-        print(pd.DataFrame(inc_proj))
+        inc_proj[:, 0] = base_col
+        total = np.nansum(inc_proj)
+        print("Suma wszystkich wartości w inc_proj:", total)
 
-        # Dyskontowane różnice
-        inc_disc = np.full_like(tri_proj, np.nan)
-        inc_disc[:, 0] = base_col
-        inc_disc[:, 1:] = inc_proj
+        print("Przyrosty przed dyskontem:")
+        print(pd.DataFrame(inc_proj).to_string())
 
-        print("pd.DataFrame(inc_disc).to_string()")
-        print(pd.DataFrame(inc_disc).to_string())
-
-        # Dyskontowanie przyrostów
+        # Dyskontujemy tylko wartości na prawo od odwrotnej przekątnej
         for rr in range(mm - 1, -1, -1):
             offset = mm - 1 - rr
-            for cc in range(offset + 2, tri_proj.shape[1]):  # +2 = skip base_col and first diff
-                idx = cc - (offset + 2)
-                if idx < len(discount_factors) and not np.isnan(inc_disc[rr, cc]):
-                    inc_disc[rr, cc] /= discount_factors[idx]
+            for cc in range(offset + 1, inc_proj.shape[1]):
+                idx = cc - (offset + 1)
+                if idx < len(discount_factors) and not np.isnan(inc_proj[rr, cc]):
+                    inc_proj[rr, cc] /= discount_factors[idx]
 
-        # Sumowanie skumulowane
-        cum_disc = inc_disc.copy()
-        for r in range(mm):
-            for c in range(1, tri_proj.shape[1]):
-                cum_disc[r, c] += cum_disc[r, c - 1]
+        print("Zdyskontowane przyrosty (na prawo od odwrotnej przekątnej):")
+        print(pd.DataFrame(inc_proj))
 
-        ult_gross_disc = np.nansum(cum_disc[:, -1])
-        return ult_gross_disc
+        total = np.nansum(inc_proj)
+        print("Suma wszystkich wartości w inc_proj:", total)
+        return 1  # lub np.nansum(inc_proj[:, -1]) jeśli chcesz sumę
 
 
     print(triangle_forward_np(data_paid_np, dev_arr, 0,discount_factors))
+
