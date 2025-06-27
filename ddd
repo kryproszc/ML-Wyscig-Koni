@@ -1,10 +1,22 @@
+base = tri_copy[r, j]
+if base == 0.0:
+    continue
+
+var_ij = s_i[j] / base
 mu_j = m_i[j]
-sd_j = s_i[j]
+m2 = mu_j ** 2
+denom = np.sqrt(m2 + var_ij)
+if denom == 0.0 or m2 == 0.0:
+    continue
+
+ln_mean = np.log(m2 / denom)
+ln_sd = np.sqrt(np.log(1.0 + var_ij / m2))
 CL_ij = np.random.lognormal(ln_mean, ln_sd)
 
-if mu_j - 2 * sd_j <= CL_ij <= mu_j + 2 * sd_j:
+# Ograniczenia wg reguł
+if mu_j - 2 * s_i[j] <= CL_ij <= mu_j + 2 * s_i[j]:
     cl_adj = CL_ij
-elif mu_j - 3 * sd_j <= CL_ij <= mu_j + 3 * sd_j:
+elif mu_j - 3 * s_i[j] <= CL_ij <= mu_j + 3 * s_i[j]:
     cl_adj = 0.5 * CL_ij
 else:
     cl_adj = 0.1 * CL_ij
