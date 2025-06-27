@@ -1,1 +1,10 @@
-s
+                    if r == mm - j - 1:
+                        cl_adj = 1
+                        if dev[j] - 2 * np.sqrt(sd[j]) <= cl_factor <= dev[j] + 2 * np.sqrt(sd[j]):
+                            cl_adj = cl_factor
+                        elif dev[j] - 3 * np.sqrt(sd[j]) <= cl_factor <= dev[j] - 2 * np.sqrt(sd[j]) or dev[j] +2 * np.sqrt(sd[j]) <= cl_factor <= dev[j] + 3 * np.sqrt(sd[j]):
+                            cl_adj = 0.5* cl_factor
+
+                        else:
+                            cl_adj = 0.0 * cl_factor
+                        new_tri[r, j + 1] = base * cl_adj
