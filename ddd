@@ -1,7 +1,3 @@
-agi_trimmed = wagi_trimmed[:, 1:]
+Good morning,
 
-# Dodaj pustą kolumnę (np. z NaN)
-empty_column = np.full((wagi_trimmed.shape[0], 1), np.nan)
-
-# Połącz z pustą kolumną
-wagi_modified = np.hstack((wagi_trimmed, empty_column))
+I would like to kindly ask you to respond to my questions.
