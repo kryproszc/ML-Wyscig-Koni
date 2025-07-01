@@ -1,3 +1,16 @@
 @njit
-def add_first(arr, val):
-    return np.concatenate((np.array([val]), arr))
+def Dev_prem(data_paid: np.ndarray, wagi: np.ndarray) -> np.ndarray:
+    """Weighted Chain‑Ladder development factors (ignoring NaNs)."""
+    n_row, n_col = data_paid.shape
+    dev = np.empty(n_col - 1)
+    for j in range(n_col - 1):
+        num = den = 0.0
+        for i in range(n_row):
+            val_curr = data_paid[i, j]
+            val_next = data_paid[i, j + 1]
+            w = wagi[i, j]
+            if not (np.isnan(val_curr) or np.isnan(val_next) or np.isnan(w)):
+                num += val_next * w
+                den += val_curr * w
+        dev[j] = num / den if den != 0.0 else 1.0
+    return dev
