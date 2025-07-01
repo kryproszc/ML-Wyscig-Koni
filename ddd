@@ -206,10 +206,10 @@ def stochastic_triangle_forward_numba_batched(
         # ---- parameter risk
         for j in range(n_dev):
             mu_part[:, j] = np.random.normal(dev[j], sd[j], batch_sim)
-            df = max(1, mm - j - 1)
+            df = max(1, mm - j-1)
             chi = np.random.chisquare(df, batch_sim)
             for s in range(batch_sim):
-                sigma_part[s, j] = (np.floor(chi[s]) * sigma_j[j]) / df
+                sigma_part[s, j] = (chi[s] * sigma_j[j]) / df
 
         # ---- process risk
         for i in range(batch_sim):
@@ -237,12 +237,13 @@ def stochastic_triangle_forward_numba_batched(
                     var_ij = s_i[j] / base
                     m2 = m_i[j] ** 2
                     denom = np.sqrt(m2 + var_ij)
-                    if denom == 0.0 or m2 == 0.0:
-                        continue
+                    #if denom == 0.0 or m2 == 0.0:
+                     #   continue
                     ln_mean = np.log(m2 / denom)
                     ln_sd = np.sqrt(np.log(1.0 + var_ij / m2))
                     cl_factor = np.random.lognormal(ln_mean, ln_sd)
                     tri_copy[r, j + 1] = base * cl_factor
+
                     dev_con = m_i[j]
                     std_con = np.sqrt(var_ij)
                     if r == mm - j - 1:
