@@ -1,16 +1,71 @@
+from numba import njit
+import numpy as np
+import pandas as pd
+
 @njit
-def Dev_prem(data_paid: np.ndarray, wagi: np.ndarray) -> np.ndarray:
-    """Weighted Chain‑Ladder development factors (ignoring NaNs)."""
-    n_row, n_col = data_paid.shape
-    dev = np.empty(n_col - 1)
-    for j in range(n_col - 1):
-        num = den = 0.0
-        for i in range(n_row):
-            val_curr = data_paid[i, j]
-            val_next = data_paid[i, j + 1]
-            w = wagi[i, j]
-            if not (np.isnan(val_curr) or np.isnan(val_next) or np.isnan(w)):
-                num += val_next * w
-                den += val_curr * w
-        dev[j] = num / den if den != 0.0 else 1.0
-    return dev
+def stochastic_triangle_forward_test_szybki_batched(
+    reserv_array, sigma_j, dev, sd, e_values,
+    simTotal=1000, Ultimate_Param_ReservingRisk=0,
+    main_seed=202260011
+):
+    mm, n_cols = reserv_array.shape
+    nDev = len(dev)
+    results = np.zeros(simTotal)
+
+    # Losowanie parametrów
+    mu_part = np.zeros((simTotal, nDev))
+    sig_part = np.zeros((simTotal, nDev))
+
+    for j in range(nDev):
+        for i in range(simTotal):
+            np.random.seed(main_seed + i)
+            mu_part[i, j] = np.random.normal(dev[j], sd[j])
+            df = max(1, mm - j)
+            chi_val = np.sum(np.random.normal(0.0, 1.0, df) ** 2)
+            sig_part[i, j] = (chi_val * sigma_j[j]) / df
+
+    # Symulacje
+    for sim in range(simTotal):
+        np.random.seed(main_seed + sim)
+        m_i = mu_part[sim, :]
+        sigma_i = sig_part[sim, :]
+        data_paid_copy = reserv_array.copy()
+
+        if n_cols < nDev + 1:
+            extra_cols = (nDev + 1) - n_cols
+            ext = np.full((mm, extra_cols), -1.0)
+            data_paid_copy = np.hstack((data_paid_copy, ext))
+
+        for j in range(nDev):
+            max_ind_row = max(1, mm - j)
+            for i in range(max_ind_row):
+                VAR_i_j = sigma_i[j] * e_values[i]
+                if m_i[j] >= 0:
+                    lmean = np.log(m_i[j] ** 2) / np.sqrt(m_i[j] ** 2 + VAR_i_j)
+                    lstdev = np.sqrt(np.log(1 + VAR_i_j / (m_i[j] ** 2)))
+                    Stochastic_LR_i_j = np.exp(np.random.normal(lmean, lstdev))
+                    data_paid_copy[i, j + 1] = e_values[i] * Stochastic_LR_i_j + data_paid_copy[i, j]
+                else:
+                    adj_mu = m_i[j] + (data_paid_copy[i, j] / e_values[i])
+                    lmean = np.log(adj_mu ** 2) / np.sqrt(adj_mu ** 2 + VAR_i_j)
+                    lstdev = np.sqrt(np.log(1 + VAR_i_j / (adj_mu ** 2)))
+                    Stochastic_LR_i_j = np.exp(np.random.normal(lmean, lstdev))
+                    data_paid_copy[i, j + 1] = e_values[i] * Stochastic_LR_i_j + data_paid_copy[i, j]
+
+        u_i = data_paid_copy[:, nDev]
+        results[sim] = np.sum(u_i) - Ultimate_Param_ReservingRisk
+
+    return results
+
+
+
+result = stochastic_triangle_forward_test_szybki_batched(
+    reserv_array=reserv_data.to_numpy().astype(np.float64),
+    sigma_j=np.array(sigma_j_LRMPC),
+    dev=np.array(LR_j),
+    sd=np.array(sd_LRMPC),
+    e_values=np.array(exposure),
+    simTotal=1000,
+    Ultimate_Param_ReservingRisk=0,
+    main_seed=202260011
+)
