@@ -1,1 +1,3 @@
-s
+@njit
+def add_first(arr, val):
+    return np.concatenate((np.array([val]), arr))
