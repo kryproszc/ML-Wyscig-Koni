@@ -1,31 +1,41 @@
-def wspolczynnik_incremental_LR(paid: np.ndarray, w: np.ndarray, exposure: np.ndarray) -> np.ndarray:
+from numba import njit
+import numpy as np
+
+@njit
+def sigma_LRMPC(paid: np.ndarray, exposure: np.ndarray, w: np.ndarray, wsp_LR_j: np.ndarray) -> np.ndarray:
     mm, nn = paid.shape
-    wsp_LR = np.empty(nn)
+    sigma_j = np.empty(nn)
+
     for j in range(nn):
         suma_l = 0.0
         suma_m = 0.0
 
-        for i in range(mm):
+        for i in range(mm - j):
             ei = exposure[i]
-            if np.isnan(paid[i, j]):
+
+            if (
+                np.isnan(paid[i, j])
+                or (j > 0 and np.isnan(paid[i, j - 1]))
+                or np.isnan(ei)
+                or np.isnan(w[i, j])
+            ):
                 continue
 
+            # Obliczanie LR_i,j
             if j == 0:
                 LR_ij = paid[i, j] / ei
             else:
-                if np.isnan(paid[i, j - 1]):
-                    continue
                 LR_ij = (paid[i, j] - paid[i, j - 1]) / ei
 
-            suma_l += LR_ij * w[i, j] * ei
+            diff2 = (LR_ij - wsp_LR_j[j]) ** 2
+            suma_l += diff2 * w[i, j] * ei
             suma_m += w[i, j] * ei
 
-        if suma_m == 0.0:
-            wsp_LR[j] = 0.0
+        # Unbiased estimator: dzielimy przez (suma wag - 1)
+        if suma_m > 1.0:
+            sigma_j[j] = suma_l / (suma_m - 1.0)
         else:
-            wsp_LR[j] = suma_l / suma_m
+            sigma_j[j] = 0.0
 
-    return wsp_LR
-
-LR_j_wyzn = wspolczynnik_incremental_LR(reserv_data,data_wagi_np,exposure)
-print(LR_j_wyzn)
+    return sigma_j
+sigma = sigma_LRMPC(paid.values.astype(float), exposure.values.astype(float), w.values.astype(float), wsp_LR)
