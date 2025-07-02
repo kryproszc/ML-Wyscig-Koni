@@ -1,34 +1,148 @@
 
-#@njit
-def wspolczynnik_incremental_LR(paid: np.ndarray, w: np.ndarray, exposure: np.ndarray) -> np.ndarray:
-    mm, nn = paid.shape
-    wsp_LR = np.empty(nn)
-    print(pd.DataFrame(paid))
-    for j in range(nn):
-        suma_l = 0.0
-        suma_m = 0.0
+import numpy as np
+from numba import njit, prange
 
-        for i in range(mm):
-            ei = exposure[i]
-            if np.isnan(paid[i, j]):
-                continue
+# ------------------------------------------------------------------------------
+# pomocnicza funkcja: uzupełnia trójkąt do (n_dev+1) kolumn                  ---
+# ------------------------------------------------------------------------------
 
-            if j == 0:
-                LR_ij = paid[i, j] / ei
+@njit
+def _build_base_triangle(data_paid, n_dev):
+
+    mm, n_cols_orig = data_paid.shape
+    total_cols = n_dev + 1
+    base = np.empty((mm, total_cols), dtype=np.float64)
+
+    for i in range(mm):
+        for j in range(total_cols):
+            if j < n_cols_orig:
+                base[i, j] = data_paid[i, j]
             else:
-                if np.isnan(paid[i, j - 1]):
-                    continue
-                LR_ij = (paid[i, j] - paid[i, j - 1]) / ei
+                base[i, j] = np.nan
+    return base
 
-            suma_l += LR_ij * w[i, j] * ei
-            suma_m += w[i, j] * ei
+import numpy as np
+from numba import njit, prange
 
-        if suma_m == 0.0:
-            wsp_LR[j] = 0.0
-        else:
-            wsp_LR[j] = suma_l / suma_m
+# ----------------------------------------------------------------------
+@njit
+def _build_base_triangle(data_paid, n_dev):
+    mm, n_cols_orig = data_paid.shape
+    total_cols = n_dev + 1
+    out = np.empty((mm, total_cols), dtype=np.float64)
+    for i in range(mm):
+        for j in range(total_cols):
+            out[i, j] = data_paid[i, j] if j < n_cols_orig else np.nan
+    return out
 
-    return wsp_LR
 
-LR_j_wyzn = wspolczynnik_incremental_LR(reserv_data,data_wagi_np,exposure)
-print(LR_j_wyzn)
+# ----------------------------------------------------------------------
+@njit(parallel=True, fastmath=True)
+def simulate_reserving_batched_numba(data_paid,
+                                     sigma_j, dev, sd, e_values,
+                                     ultimate_param_resrisk,
+                                     sim_total=100_000,
+                                     batch_sim=10_000,
+                                     main_seed=202260011):
+    """
+    Symulacja z losowaniem parametrów „na paczki” (batch_sim)
+    i zmienianiem ziarna RNG: seed = main_seed + batch_idx.
+
+    Zwraca 1-D tablicę wyników długości sim_total.
+    """
+    mm, _   = data_paid.shape
+    n_dev   = len(dev)
+    base    = _build_base_triangle(data_paid, n_dev)
+    results = np.empty(sim_total, dtype=np.float64)
+
+    n_batches = (sim_total + batch_sim - 1) // batch_sim  # zaokr. w górę
+
+    for batch_idx in prange(n_batches):              # pętla równoległa
+        np.random.seed(main_seed + batch_idx)        # <-- ważne
+
+        # ile symulacji w tej paczce?
+        start   = batch_idx * batch_sim
+        end     = min(start + batch_sim, sim_total)
+        cur_bs  = end - start                        # może być mniejszy na końcu
+
+        # ---------------- losowanie parametrów ryzyka ------------------
+        mu_part    = np.empty((cur_bs, n_dev), dtype=np.float64)
+        sigma_part = np.empty((cur_bs, n_dev), dtype=np.float64)
+
+        for j in range(n_dev):
+            mu_part[:, j] = np.random.normal(dev[j], sd[j], cur_bs)
+
+            df  = max(1, mm - j)
+            chi = np.random.chisquare(df, cur_bs)
+            for s in range(cur_bs):
+                sigma_part[s, j] = (chi[s] * sigma_j[j]) / df
+
+        # ---------------- pętla po symulacjach w paczce ----------------
+        for s in range(cur_bs):
+            paid = base.copy()
+
+            for j in range(n_dev):
+                max_ind_row = mm - j
+                if max_ind_row < 1:
+                    max_ind_row = 1
+
+                for i in range(max_ind_row - 1, mm):
+                    var_ij = sigma_part[s, j] / e_values[i]
+
+                    if mu_part[s, j] >= 0.0:
+                        lmean  = np.log(mu_part[s, j]**2 /
+                                        np.sqrt(mu_part[s, j]**2 + var_ij))
+                        lstdev = np.sqrt(np.log(1.0 + var_ij /
+                                                (mu_part[s, j]**2)))
+                        sto_lr = np.random.lognormal(lmean, lstdev)
+
+                        paid[i, j + 1] = e_values[i] * sto_lr + paid[i, j]
+
+                    else:
+                        adj_mu = (mu_part[s, j] +
+                                  paid[i, j] / e_values[i])
+                        lmean  = np.log(adj_mu**2 /
+                                        np.sqrt(adj_mu**2 + var_ij))
+                        lstdev = np.sqrt(np.log(1.0 + var_ij / (adj_mu**2)))
+                        sto_lr = np.random.lognormal(lmean, lstdev)
+
+                        paid[i, j + 1] = (e_values[i] *
+                                          (sto_lr - paid[i, j] / e_values[i]) +
+                                          paid[i, j])
+
+
+
+
+            ult = 0.0
+            for i in range(mm):
+                ult += paid[i, n_dev]
+            results[start + s] = ult - ultimate_param_resrisk
+
+    return results
+
+# ----------------
+res = simulate_reserving_batched_numba(
+    data_paid=reserv_data.astype(np.float64),  # Twoja macierz trójkąta
+    sigma_j=sigma_j_LRMPC,
+    dev=LR_j,
+    sd=sd_LRMPC,
+    e_values=exposure,
+    ultimate_param_resrisk=0.0,
+    sim_total=120_000,
+    batch_sim=10_000,
+    main_seed=42)
+
+
+
+# Skalowanie wyników
+results_cale = 0.8175 * (res - 353711203.040793)
+
+print("Median:", np.median(results_cale))
+quantile_levels = [0.1, 0.2, 0.3, 0.995, 0.996, 0.997, 0.998, 0.999]
+for q in quantile_levels:
+    quant_val = np.quantile(results_cale, q)
+    print(f"Quantile {q}: {quant_val}")
+mean_val = np.mean(results_cale)
+print("Mean:", mean_val)
+diff = np.quantile(results_cale, 0.995) - mean_val
+print("Difference (Quantile - Mean):", diff)
