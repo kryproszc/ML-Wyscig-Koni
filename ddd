@@ -1,45 +1,29 @@
-from numba import njit
-import numpy as np
+def fit_curve_factor_LR(f_input, sd_input, x_k):
+    """
+    Dopasowanie regresji liniowej log(f_j) = a + b * j
+    z wagami opartymi o wariancję log(f_j) wg Mack'a.
+    """
+    # krok 1: se^2
+    se_factor = [x ** 2 for x in sd_input]
 
-@njit
-def sigma_LRMPC_with_sd2(paid: np.ndarray, exposure: np.ndarray, w: np.ndarray, wsp_LR_j: np.ndarray):
-    mm, nn = paid.shape
-    sigma_j = np.empty(nn)
-    sd2_j = np.empty(nn)
+    # krok 2: wagi 1 / sqrt(log(1 + (se/f)^2))
+    w_k_sqr = [
+        1 / np.sqrt(np.log(1 + (se_f / (f - 1e-12)) ** 2))
+        for f, se_f in zip(f_input, se_factor)
+    ]
 
-    for j in range(nn):
-        suma_l = 0.0      # licznik dla sigma_j
-        suma_w = 0.0      # suma wag (do sigma_j)
-        suma_we = 0.0     # suma wag * ekspozycja (do sd_j^2)
+    # krok 3: log(f_j)
+    factor_input = [np.log(f) for f in f_input]
 
-        for i in range(mm - j):
-            ei = exposure[i]
+    # krok 4: sumy ważone
+    A = np.sum(w_k_sqr)
+    A_x = np.sum([w * x for w, x in zip(w_k_sqr, x_k)])
+    A_x_x = np.sum([w * x * x for w, x in zip(w_k_sqr, x_k)])
+    A_y = np.sum([w * y for w, y in zip(w_k_sqr, factor_input)])
+    A_x_y = np.sum([w * x * y for w, x, y in zip(w_k_sqr, x_k, factor_input)])
 
-            if (
-                np.isnan(paid[i, j])
-                or (j > 0 and np.isnan(paid[i, j - 1]))
-                or np.isnan(ei)
-                or np.isnan(w[i, j])
-            ):
-                continue
+    Delta = A * A_x_x - A_x ** 2
+    a = (A_x_x * A_y - A_x * A_x_y) / Delta
+    b = (A * A_x_y - A_x * A_y) / Delta
 
-            # LR_i,j
-            if j == 0:
-                LR_ij = paid[i, j] / ei
-            else:
-                LR_ij = (paid[i, j] - paid[i, j - 1]) / ei
-
-            diff2 = (LR_ij - wsp_LR_j[j]) ** 2
-
-            suma_l += diff2 * w[i, j] * ei
-            suma_w += w[i, j]
-            suma_we += w[i, j] * ei
-
-        if suma_w > 1.0 and suma_we > 0.0:
-            sigma_j[j] = suma_l / (suma_w - 1.0)
-            sd2_j[j] = sigma_j[j] / suma_we
-        else:
-            sigma_j[j] = 0.0
-            sd2_j[j] = 0.0
-
-    return sigma_j, sd2_j
+    return [a, b]
