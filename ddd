@@ -2,13 +2,15 @@ from numba import njit
 import numpy as np
 
 @njit
-def sigma_LRMPC(paid: np.ndarray, exposure: np.ndarray, w: np.ndarray, wsp_LR_j: np.ndarray) -> np.ndarray:
+def sigma_LRMPC_with_sd2(paid: np.ndarray, exposure: np.ndarray, w: np.ndarray, wsp_LR_j: np.ndarray):
     mm, nn = paid.shape
     sigma_j = np.empty(nn)
+    sd2_j = np.empty(nn)
 
     for j in range(nn):
-        suma_l = 0.0
-        suma_w = 0.0  # Tylko suma wag, nie wag * exp
+        suma_l = 0.0      # licznik dla sigma_j
+        suma_w = 0.0      # suma wag (do sigma_j)
+        suma_we = 0.0     # suma wag * ekspozycja (do sd_j^2)
 
         for i in range(mm - j):
             ei = exposure[i]
@@ -28,12 +30,16 @@ def sigma_LRMPC(paid: np.ndarray, exposure: np.ndarray, w: np.ndarray, wsp_LR_j:
                 LR_ij = (paid[i, j] - paid[i, j - 1]) / ei
 
             diff2 = (LR_ij - wsp_LR_j[j]) ** 2
-            suma_l += diff2 * w[i, j] * ei
-            suma_w += w[i, j]  # ❗️ tylko waga!
 
-        if suma_w > 1.0:
+            suma_l += diff2 * w[i, j] * ei
+            suma_w += w[i, j]
+            suma_we += w[i, j] * ei
+
+        if suma_w > 1.0 and suma_we > 0.0:
             sigma_j[j] = suma_l / (suma_w - 1.0)
+            sd2_j[j] = sigma_j[j] / suma_we
         else:
             sigma_j[j] = 0.0
+            sd2_j[j] = 0.0
 
-    return sigma_j
+    return sigma_j, sd2_j
