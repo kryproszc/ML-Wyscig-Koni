@@ -1,1 +1,31 @@
-s
+def wspolczynnik_incremental_LR(paid: np.ndarray, w: np.ndarray, exposure: np.ndarray) -> np.ndarray:
+    mm, nn = paid.shape
+    wsp_LR = np.empty(nn)
+    for j in range(nn):
+        suma_l = 0.0
+        suma_m = 0.0
+
+        for i in range(mm):
+            ei = exposure[i]
+            if np.isnan(paid[i, j]):
+                continue
+
+            if j == 0:
+                LR_ij = paid[i, j] / ei
+            else:
+                if np.isnan(paid[i, j - 1]):
+                    continue
+                LR_ij = (paid[i, j] - paid[i, j - 1]) / ei
+
+            suma_l += LR_ij * w[i, j] * ei
+            suma_m += w[i, j] * ei
+
+        if suma_m == 0.0:
+            wsp_LR[j] = 0.0
+        else:
+            wsp_LR[j] = suma_l / suma_m
+
+    return wsp_LR
+
+LR_j_wyzn = wspolczynnik_incremental_LR(reserv_data,data_wagi_np,exposure)
+print(LR_j_wyzn)
