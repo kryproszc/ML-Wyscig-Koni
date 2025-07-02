@@ -8,7 +8,7 @@ def sigma_LRMPC(paid: np.ndarray, exposure: np.ndarray, w: np.ndarray, wsp_LR_j:
 
     for j in range(nn):
         suma_l = 0.0
-        suma_m = 0.0
+        suma_w = 0.0  # Tylko suma wag, nie wag * exp
 
         for i in range(mm - j):
             ei = exposure[i]
@@ -21,7 +21,7 @@ def sigma_LRMPC(paid: np.ndarray, exposure: np.ndarray, w: np.ndarray, wsp_LR_j:
             ):
                 continue
 
-            # Obliczanie LR_i,j
+            # LR_i,j
             if j == 0:
                 LR_ij = paid[i, j] / ei
             else:
@@ -29,13 +29,11 @@ def sigma_LRMPC(paid: np.ndarray, exposure: np.ndarray, w: np.ndarray, wsp_LR_j:
 
             diff2 = (LR_ij - wsp_LR_j[j]) ** 2
             suma_l += diff2 * w[i, j] * ei
-            suma_m += w[i, j] * ei
+            suma_w += w[i, j]  # ❗️ tylko waga!
 
-        # Unbiased estimator: dzielimy przez (suma wag - 1)
-        if suma_m > 1.0:
-            sigma_j[j] = suma_l / (suma_m - 1.0)
+        if suma_w > 1.0:
+            sigma_j[j] = suma_l / (suma_w - 1.0)
         else:
             sigma_j[j] = 0.0
 
     return sigma_j
-sigma = sigma_LRMPC(paid.values.astype(float), exposure.values.astype(float), w.values.astype(float), wsp_LR)
