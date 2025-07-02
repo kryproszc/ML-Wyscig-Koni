@@ -1,29 +1,44 @@
-def fit_curve_factor_LR(f_input, sd_input, x_k):
+from numba import njit
+import numpy as np
+
+@njit
+def fit_curve_factor_lr(data_input, sd_input, x_k):
     """
-    Dopasowanie regresji liniowej log(f_j) = a + b * j
-    z wagami opartymi o wariancję log(f_j) wg Mack'a.
+    Log‑linear fit: ln(f) = a * k + b
+    Z wagami odwrotnie proporcjonalnymi do błędu LR (zgodnie z Mackiem).
     """
-    # krok 1: se^2
-    se_factor = [x ** 2 for x in sd_input]
+    n = len(data_input)
+    se2 = sd_input ** 2
+    w = np.empty(n)
+    for i in range(n):
+        denom = data_input[i] ** 2
+        if denom > 0.0:
+            w[i] = 1.0 / np.sqrt(np.log(1.0 + se2[i] / denom))
+        else:
+            w[i] = 1.0
 
-    # krok 2: wagi 1 / sqrt(log(1 + (se/f)^2))
-    w_k_sqr = [
-        1 / np.sqrt(np.log(1 + (se_f / (f - 1e-12)) ** 2))
-        for f, se_f in zip(f_input, se_factor)
-    ]
+    y = np.empty(n)
+    for i in range(n):
+        if data_input[i] > 0.0:
+            y[i] = np.log(data_input[i])
+        else:
+            y[i] = 0.0  # lub np.nan, jeśli chcesz filtrować
 
-    # krok 3: log(f_j)
-    factor_input = [np.log(f) for f in f_input]
+    A = A_x = A_xx = A_y = A_xy = 0.0
+    for i in range(n):
+        wi = w[i]
+        xi = x_k[i]
+        yi = y[i]
+        A += wi
+        A_x += wi * xi
+        A_xx += wi * xi * xi
+        A_y += wi * yi
+        A_xy += wi * xi * yi
 
-    # krok 4: sumy ważone
-    A = np.sum(w_k_sqr)
-    A_x = np.sum([w * x for w, x in zip(w_k_sqr, x_k)])
-    A_x_x = np.sum([w * x * x for w, x in zip(w_k_sqr, x_k)])
-    A_y = np.sum([w * y for w, y in zip(w_k_sqr, factor_input)])
-    A_x_y = np.sum([w * x * y for w, x, y in zip(w_k_sqr, x_k, factor_input)])
+    Delta = A * A_xx - A_x * A_x
+    if Delta == 0.0:
+        return 0.0, 0.0
 
-    Delta = A * A_x_x - A_x ** 2
-    a = (A_x_x * A_y - A_x * A_x_y) / Delta
-    b = (A * A_x_y - A_x * A_y) / Delta
-
-    return [a, b]
+    a_coef = (A * A_xy - A_x * A_y) / Delta
+    b_coef = (A_xx * A_y - A_x * A_xy) / Delta
+    return a_coef, b_coef
