@@ -1,1 +1,21 @@
-ss
+import numpy as np
+from numba import njit
+
+@njit
+def transform_data(data_input, exposure):
+    n, m = data_input.shape
+    output = np.empty((n, m))
+    
+    # Pierwsza kolumna bez zmian
+    for i in range(n):
+        output[i, 0] = data_input[i, 0]
+    
+    # Pozostałe kolumny z przeliczeniem tylko dla nie-NaN
+    for j in range(1, m):
+        for i in range(n):
+            if not np.isnan(data_input[i, j]) and not np.isnan(data_input[i, 0]):
+                output[i, j] = (data_input[i, j] - data_input[i, 0]) / exposure[i]
+            else:
+                output[i, j] = np.nan  # zostawiamy NaN jeśli nie można policzyć
+    
+    return output
