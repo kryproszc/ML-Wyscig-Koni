@@ -2,20 +2,27 @@ import numpy as np
 from numba import njit
 
 @njit
-def transform_data(data_input, exposure):
-    n, m = data_input.shape
-    output = np.empty((n, m))
-    
-    # Pierwsza kolumna bez zmian
-    for i in range(n):
-        output[i, 0] = data_input[i, 0]
-    
-    # Pozostałe kolumny z przeliczeniem tylko dla nie-NaN
-    for j in range(1, m):
+def wspolczynnik_LR(data_LR, w, exposure):
+    n, m = data_LR.shape
+    wsp_LR = []
+
+    for j in range(m):
+        L_pom = []
+        m_pom = []
+
         for i in range(n):
-            if not np.isnan(data_input[i, j]) and not np.isnan(data_input[i, 0]):
-                output[i, j] = (data_input[i, j] - data_input[i, 0]) / exposure[i]
-            else:
-                output[i, j] = np.nan  # zostawiamy NaN jeśli nie można policzyć
-    
-    return output
+            val_j = data_LR[i, j]
+            val_0 = data_LR[i, 0]
+
+            if not np.isnan(val_j) and not np.isnan(val_0):
+                L_pom.append((val_j - val_0) * w[i] + exposure[i])
+                m_pom.append(exposure[i] + w[i])
+
+        if len(m_pom) == 0 or np.sum(m_pom) == 0:
+            wartosc = 0.0
+        else:
+            wartosc = np.sum(L_pom) / np.sum(m_pom)
+
+        wsp_LR.append(wartosc)
+
+    return np.array(wsp_LR)
