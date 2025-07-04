@@ -4,25 +4,24 @@ from numba import njit
 @njit
 def wspolczynnik_LR(data_LR, w, exposure):
     n, m = data_LR.shape
-    wsp_LR = []
+    wsp_LR = np.empty(m)
 
     for j in range(m):
-        L_pom = []
-        m_pom = []
+        numerator = 0.0
+        denominator = 0.0
 
         for i in range(n):
-            val_j = data_LR[i, j]
-            val_0 = data_LR[i, 0]
+            lr_ij = data_LR[i, j]
+            w_ij = w[i, j]
+            e_i = exposure[i]
 
-            if not np.isnan(val_j) and not np.isnan(val_0):
-                L_pom.append((val_j - val_0) * w[i] + exposure[i])
-                m_pom.append(exposure[i] + w[i])
+            if not np.isnan(lr_ij) and not np.isnan(w_ij) and not np.isnan(e_i):
+                numerator += lr_ij * w_ij * e_i
+                denominator += w_ij * e_i
 
-        if len(m_pom) == 0 or np.sum(m_pom) == 0:
-            wartosc = 0.0
+        if denominator == 0:
+            wsp_LR[j] = 0.0  # lub np.nan jeśli wolisz
         else:
-            wartosc = np.sum(L_pom) / np.sum(m_pom)
+            wsp_LR[j] = numerator / denominator
 
-        wsp_LR.append(wartosc)
-
-    return np.array(wsp_LR)
+    return wsp_LR
