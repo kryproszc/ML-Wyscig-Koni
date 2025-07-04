@@ -1,24 +1,10 @@
-import numpy as np
-from numba import njit
+dane <- read.csv("ścieżka/do/pliku.csv", stringsAsFactors = FALSE)
 
-@njit
-def wspolczynnik_sd(wsp_sigma, w, exposure):
-    n, m = w.shape
-    sd_j = np.empty(m)
+# Usunięcie spacji z początku i końca kolumny X
+dane$X <- trimws(dane$X)
 
-    for j in range(m):
-        denominator = 0.0
-        for i in range(n):
-            wij = w[i, j]
-            ei = exposure[i]
-            if not np.isnan(wij) and not np.isnan(ei):
-                denominator += wij * ei
+# Filtrowanie wierszy, gdzie kolumna X to "ZĄBKI"
+zabki_wiersze <- dane[dane$X == "ZĄBKI", ]
 
-        if denominator == 0:
-            sd_j[j] = 0.0  # lub np.nan
-        else:
-            sd_j[j] = np.sqrt(wsp_sigma[j] / denominator)
-
-    return sd_j
-
-
+# Wyświetlenie wyników
+print(zabki_wiersze)
