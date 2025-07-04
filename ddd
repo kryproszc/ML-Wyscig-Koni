@@ -2,28 +2,10 @@ import numpy as np
 from numba import njit
 
 @njit
-def sigma_LR(data_LR, w, exposure):
+def sigma_LR(data_LR, w, exposure, wsp_LR):
     n, m = data_LR.shape
     sigma_j = np.empty(m)
 
-    # najpierw liczymy średnie LR_j
-    wsp_LR = np.empty(m)
-    for j in range(m):
-        numerator = 0.0
-        denominator = 0.0
-        for i in range(n):
-            lr = data_LR[i, j]
-            wij = w[i, j]
-            ei = exposure[i]
-            if not np.isnan(lr) and not np.isnan(wij) and not np.isnan(ei):
-                numerator += lr * wij * ei
-                denominator += wij * ei
-        if denominator == 0:
-            wsp_LR[j] = np.nan
-        else:
-            wsp_LR[j] = numerator / denominator
-
-    # teraz liczymy wariancję σ_j
     for j in range(m):
         sum_num = 0.0
         sum_denom = 0.0
@@ -33,6 +15,7 @@ def sigma_LR(data_LR, w, exposure):
             lr = data_LR[i, j]
             wij = w[i, j]
             ei = exposure[i]
+
             if not np.isnan(lr) and not np.isnan(wij) and not np.isnan(ei) and not np.isnan(mean_j):
                 sum_num += wij * ei * (lr - mean_j) ** 2
                 sum_denom += wij
@@ -40,6 +23,6 @@ def sigma_LR(data_LR, w, exposure):
         if sum_denom > 1:
             sigma_j[j] = sum_num / (sum_denom - 1)
         else:
-            sigma_j[j] = 0.0  # lub np.nan
+            sigma_j[j] = 0.0  # lub np.nan, zależnie od zastosowania
 
     return sigma_j
