@@ -1,4 +1,7 @@
-con <- file("PKO TU SA Ubezpieczone obiekty.csv", encoding = "windows-1250")
-lines <- readLines(con)
-close(con)
-head(lines, 10)
+file_path = "ścieżka/do/pliku.csv"
+
+# Wczytanie pliku w UTF-8
+df = pd.read_csv(file_path, encoding="utf-8", sep=";", decimal=",")
+
+# Wyświetlenie pierwszych 5 wierszy
+print(df.head())
