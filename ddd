@@ -2,27 +2,21 @@ import numpy as np
 from numba import njit
 
 @njit
-def sigma_LR(data_LR, w, exposure, wsp_LR):
-    n, m = data_LR.shape
-    sigma_j = np.empty(m)
+def wspolczynnik_sd(wsp_sigma, w, exposure):
+    n, m = w.shape
+    sd_j = np.empty(m)
 
     for j in range(m):
-        sum_num = 0.0
-        sum_denom = 0.0
-        mean_j = wsp_LR[j]
-
+        denominator = 0.0
         for i in range(n):
-            lr = data_LR[i, j]
             wij = w[i, j]
             ei = exposure[i]
+            if not np.isnan(wij) and not np.isnan(ei):
+                denominator += wij * ei
 
-            if not np.isnan(lr) and not np.isnan(wij) and not np.isnan(ei) and not np.isnan(mean_j):
-                sum_num += wij * ei * (lr - mean_j) ** 2
-                sum_denom += wij
-
-        if sum_denom > 1:
-            sigma_j[j] = sum_num / (sum_denom - 1)
+        if denominator == 0:
+            sd_j[j] = 0.0  # lub np.nan
         else:
-            sigma_j[j] = 0.0  # lub np.nan, zależnie od zastosowania
+            sd_j[j] = np.sqrt(wsp_sigma[j] / denominator)
 
-    return sigma_j
+    return sd_j
