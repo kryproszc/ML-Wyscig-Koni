@@ -1,10 +1,4 @@
-@njit
-def zastap_zera_nan(tablica):
-    for i in range(tablica.shape[0]):
-        for j in range(tablica.shape[1]):
-            if tablica[i, j] == 0:
-                tablica[i, j] = np.nan
-    return tablica
-
-
-a = zastap_zera_nan(a)
+con <- file("PKO TU SA Ubezpieczone obiekty.csv", encoding = "windows-1250")
+lines <- readLines(con)
+close(con)
+head(lines, 10)
