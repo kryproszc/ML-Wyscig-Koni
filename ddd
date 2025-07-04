@@ -2,26 +2,44 @@ import numpy as np
 from numba import njit
 
 @njit
-def wspolczynnik_LR(data_LR, w, exposure):
+def sigma_LR(data_LR, w, exposure):
     n, m = data_LR.shape
-    wsp_LR = np.empty(m)
+    sigma_j = np.empty(m)
 
+    # najpierw liczymy średnie LR_j
+    wsp_LR = np.empty(m)
     for j in range(m):
         numerator = 0.0
         denominator = 0.0
-
         for i in range(n):
-            lr_ij = data_LR[i, j]
-            w_ij = w[i, j]
-            e_i = exposure[i]
-
-            if not np.isnan(lr_ij) and not np.isnan(w_ij) and not np.isnan(e_i):
-                numerator += lr_ij * w_ij * e_i
-                denominator += w_ij * e_i
-
+            lr = data_LR[i, j]
+            wij = w[i, j]
+            ei = exposure[i]
+            if not np.isnan(lr) and not np.isnan(wij) and not np.isnan(ei):
+                numerator += lr * wij * ei
+                denominator += wij * ei
         if denominator == 0:
-            wsp_LR[j] = 0.0  # lub np.nan jeśli wolisz
+            wsp_LR[j] = np.nan
         else:
             wsp_LR[j] = numerator / denominator
 
-    return wsp_LR
+    # teraz liczymy wariancję σ_j
+    for j in range(m):
+        sum_num = 0.0
+        sum_denom = 0.0
+        mean_j = wsp_LR[j]
+
+        for i in range(n):
+            lr = data_LR[i, j]
+            wij = w[i, j]
+            ei = exposure[i]
+            if not np.isnan(lr) and not np.isnan(wij) and not np.isnan(ei) and not np.isnan(mean_j):
+                sum_num += wij * ei * (lr - mean_j) ** 2
+                sum_denom += wij
+
+        if sum_denom > 1:
+            sigma_j[j] = sum_num / (sum_denom - 1)
+        else:
+            sigma_j[j] = 0.0  # lub np.nan
+
+    return sigma_j
