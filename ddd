@@ -1,10 +1,10 @@
-dane <- read.csv("ścieżka/do/pliku.csv", stringsAsFactors = FALSE)
+@njit
+def zastap_zera_nan(tablica):
+    for i in range(tablica.shape[0]):
+        for j in range(tablica.shape[1]):
+            if tablica[i, j] == 0:
+                tablica[i, j] = np.nan
+    return tablica
 
-# Usunięcie spacji z początku i końca kolumny X
-dane$X <- trimws(dane$X)
 
-# Filtrowanie wierszy, gdzie kolumna X to "ZĄBKI"
-zabki_wiersze <- dane[dane$X == "ZĄBKI", ]
-
-# Wyświetlenie wyników
-print(zabki_wiersze)
+a = zastap_zera_nan(a)
