@@ -20,3 +20,5 @@ def wspolczynnik_sd(wsp_sigma, w, exposure):
             sd_j[j] = np.sqrt(wsp_sigma[j] / denominator)
 
     return sd_j
+
+
