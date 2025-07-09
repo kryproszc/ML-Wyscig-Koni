@@ -1,7 +1,6 @@
-file_path = "ścieżka/do/pliku.csv"
-
-# Wczytanie pliku w UTF-8
-df = pd.read_csv(file_path, encoding="utf-8", sep=";", decimal=",")
-
-# Wyświetlenie pierwszych 5 wierszy
-print(df.head())
+    srednia = np.zeros(n_krokow)
+    for i in range(n_krokow):
+        suma = 0.0
+        for j in range(n_symulacji):
+            suma += wyniki[j, i]
+        srednia[i] = suma / n_symulacji
