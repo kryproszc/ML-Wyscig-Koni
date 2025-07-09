@@ -1,6 +1,22 @@
-    srednia = np.zeros(n_krokow)
-    for i in range(n_krokow):
-        suma = 0.0
-        for j in range(n_symulacji):
-            suma += wyniki[j, i]
-        srednia[i] = suma / n_symulacji
+import numpy as np
+from numba import njit
+
+@njit
+def fit_curve_factor_P_to_I(data_input, x_k):
+    # Przygotowanie danych
+    factor_input = np.log(1.0 / data_input)
+    x_k = np.array(x_k)
+    w_k_sqr = np.ones(len(data_input))  # Dla 'factor_P_to_I' wagi są równe 1
+
+    # Obliczenia pomocnicze
+    A = np.sum(w_k_sqr)
+    A_x = np.sum(w_k_sqr * x_k)
+    A_xx = np.sum(w_k_sqr * x_k * x_k)
+    A_y = np.sum(w_k_sqr * factor_input)
+    A_xy = np.sum(w_k_sqr * x_k * factor_input)
+
+    Delta = A * A_xx - A_x * A_x
+    a = (A * A_xy - A_x * A_y) / Delta
+    b = (A_xx * A_y - A_x * A_xy) / Delta
+
+    return a, b
