@@ -1,13 +1,12 @@
-    def run_simulation(self, data_paid, sigma_j, dev, sd, e_values,
-                       exposure_one_year_np, wagi_trimmed,
-                       ilosc_dop_wsp_CL, Poz_LR, il_ogon,
-                       ultimate_param_resrisk, net_to_gross,
-                       sim_total=100_000, batch_sim=10_000, main_seed=202206011):
-
-        return simulate_reserving_batched_numba(
-            data_paid,
-            sigma_j, dev, sd, e_values, exposure_one_year_np, wagi_trimmed,
-            ilosc_dop_wsp_CL, Poz_LR, il_ogon,
-            ultimate_param_resrisk, net_to_gross,
-            sim_total, batch_sim, main_seed
-        )
+print("data_paid:", type(data_paid))
+print("sigma_j:", type(sigma_j))
+print("dev:", type(dev))
+print("sd:", type(sd))
+print("e_values:", type(e_values))
+print("wagi_trimmed:", type(wagi_trimmed))
+print("ilosc_dop_wsp_CL:", type(ilosc_dop_wsp_CL))
+print("Poz_LR:", type(Poz_LR))
+print("il_ogon:", type(il_ogon))
+print("ultimate_param_resrisk:", type(ultimate_param_resrisk))
+print("discount_factors:", type(discount_factors))
+print("net_to_gross:", type(net_to_gross))
