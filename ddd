@@ -1,12 +1,49 @@
-print("data_paid:", type(data_paid))
-print("sigma_j:", type(sigma_j))
-print("dev:", type(dev))
-print("sd:", type(sd))
-print("e_values:", type(e_values))
-print("wagi_trimmed:", type(wagi_trimmed))
-print("ilosc_dop_wsp_CL:", type(ilosc_dop_wsp_CL))
-print("Poz_LR:", type(Poz_LR))
-print("il_ogon:", type(il_ogon))
-print("ultimate_param_resrisk:", type(ultimate_param_resrisk))
-print("discount_factors:", type(discount_factors))
-print("net_to_gross:", type(net_to_gross))
+import pandas as pd
+
+def pobierz_wartosci_z_excela(
+    plik: str,
+    arkusz: str,
+    row_start: int,
+    row_end: int,
+    linia_biznesowa: str,
+    wartosci: list
+) -> dict:
+    """
+    Zwraca słownik {nazwa_parametru: wartość} dla podanej linii biznesowej z określonego bloku wierszy w Excelu.
+    
+    Args:
+        plik: ścieżka do pliku Excel
+        arkusz: nazwa arkusza
+        row_start: numer pierwszego wiersza z danymi (0-indeksowany)
+        row_end: numer ostatniego wiersza (exclusive)
+        linia_biznesowa: np. "ACCID E"
+        wartosci: lista parametrów, które chcemy pobrać
+        
+    Returns:
+        dict: {parametr: wartość}
+    """
+    try:
+        # Wczytaj cały arkusz bez nagłówków
+        df = pd.read_excel(plik, sheet_name=arkusz, header=None)
+
+        # Nagłówki są wiersz przed blokiem danych
+        naglowki = df.iloc[row_start - 1]
+        blok = df.iloc[row_start:row_end].copy()
+        blok.columns = naglowki
+        blok.reset_index(drop=True, inplace=True)
+
+        # Załóżmy, że pierwszy wiersz zawiera nazwy parametrów
+        param_col = blok.columns[0]
+
+        wynik = {}
+        for parametr in wartosci:
+            try:
+                wartosc = blok.loc[blok[param_col] == parametr, linia_biznesowa].values[0]
+                wynik[parametr] = wartosc
+            except IndexError:
+                wynik[parametr] = None  # brak wartości w tabeli
+
+        return wynik
+
+    except Exception as e:
+        raise RuntimeError(f"Błąd wczytywania danych z Excela: {e}")
