@@ -1,51 +1,8 @@
-import pandas as pd
-
-def pobierz_wartosci_z_excela(
-    plik: str,
-    arkusz: str,
-    row_start: int,
-    row_end: int,
-    linia_biznesowa: str,
-    wartosci: list
-) -> dict:
-    """
-    Zwraca słownik {nazwa_parametru: wartość} z określonego bloku tabeli (startującego w kolumnie B).
-    
-    Args:
-        plik: ścieżka do pliku Excel
-        arkusz: nazwa arkusza
-        row_start: numer pierwszego wiersza danych (np. 95)
-        row_end: numer ostatniego wiersza danych (exclusive, np. 100)
-        linia_biznesowa: np. "ACCID E"
-        wartosci: lista parametrów do pobrania
+        skip = False
+        for val in arr:
+            if val < 1e-14:
+                skip = True
+                break
         
-    Returns:
-        dict: {parametr: wartość}
-    """
-    try:
-        # Wczytaj cały arkusz bez nagłówka
-        df = pd.read_excel(plik, sheet_name=arkusz, header=None)
-
-        # Przesunięcie w lewo: ignorujemy pierwszą kolumnę (A)
-        df = df.iloc[:, 1:]
-
-        # Pobierz nagłówki z wiersza powyżej (np. wiersz 94 jeśli dane od 95)
-        naglowki = df.iloc[row_start - 1]
-        blok = df.iloc[row_start:row_end].copy()
-        blok.columns = naglowki
-        blok.reset_index(drop=True, inplace=True)
-
-        # Załóżmy, że pierwsza kolumna to nazwy parametrów
-        param_col = blok.columns[0]
-
-        wynik = {}
-        for parametr in wartosci:
-            try:
-                wartosc = blok.loc[blok[param_col] == parametr, linia_biznesowa].values[0]
-                wynik[parametr] = wartosc
-            except IndexError:
-                wynik[parametr] = None  # brak takiego parametru
-        return wynik
-
-    except Exception as e:
-        raise RuntimeError(f"Błąd przy pobieraniu danych: {e}")
+        if skip:
+            continue 
