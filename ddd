@@ -1,9 +1,13 @@
-import numpy as np
-from numba import njit
+    def run_simulation(self, data_paid, sigma_j, dev, sd, e_values,
+                       exposure_one_year_np, wagi_trimmed,
+                       ilosc_dop_wsp_CL, Poz_LR, il_ogon,
+                       ultimate_param_resrisk, net_to_gross,
+                       sim_total=100_000, batch_sim=10_000, main_seed=202206011):
 
-@njit
-def spolczynnik_reg_factor_P_to_I(a, b, k_start, k_stop):
-    k_values = np.arange(k_start, k_stop + 1)
-    exponent = np.exp(a * k_values + b)
-    wartosci_reg = 1.0 - exponent
-    return wartosci_reg
+        return simulate_reserving_batched_numba(
+            data_paid,
+            sigma_j, dev, sd, e_values, exposure_one_year_np, wagi_trimmed,
+            ilosc_dop_wsp_CL, Poz_LR, il_ogon,
+            ultimate_param_resrisk, net_to_gross,
+            sim_total, batch_sim, main_seed
+        )
