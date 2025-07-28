@@ -1,47 +1,58 @@
-'use client';
+## incurred
 
-import { useState } from "react";
-import { InputDataTab } from '@/app/_components/InputDataTab';
-import { InputDataTabDet } from "./InputDataTabDet";
-import { InputDataTabIncurred } from "./InputDataTabDetIncurred";
+class IncurredTriangleRequest(BaseModel):
+    user_id: str
+    incurred_data_det: List[List[Union[str, int, float, None]]]
+    weights: Optional[List[List[int]]] = None
 
-//import PaidTriangleDet from "./PaidTriangleDet"; // ✅ poprawiony import
-import { cn } from "@/lib/utils";
 
-const tabs = [
-  { key: "stochastic", label: "Stochastic" },
-  { key: "paid", label: "Paid" },
-  { key: "incurred", label: "Incurred" },
-];
+class IncurredCLRequest(BaseModel):
+    user_id: str
+    incurred_data_det: List[List[Union[str, int, float, None]]]
+    weights: List[List[int]]
 
-export function DataTabs() {
-  const [activeTab, setActiveTab] = useState("stochastic");
+@app.post("/calc/incurred/train_devide_incurred")
+async def calc_incurred_train_devide(payload: IncurredTriangleRequest):
+    data = {}
+    headers = [x for x in range(len(payload.incurred_data_det[0]))]
+    for i, col in enumerate(headers):
+        data[col] = []
+        for row in payload.incurred_data_det:
+            value = row[i]
+            try:
+                num_value = float(value)
+            except (ValueError, TypeError):
+                num_value = None
+            data[col].append(num_value)
 
-  return (
-    <div className="flex flex-col gap-6">
-      {/* Zakładki */}
-      <div className="flex border-b border-gray-700 space-x-8 text-white text-base font-medium">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={cn(
-              "pb-2 transition-colors duration-200",
-              activeTab === tab.key
-                ? "text-blue-400 border-b-2 border-blue-400"
-                : "hover:text-blue-300"
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+    train_devide = TriangleCalculator.elementwise_division(data)
+    train_devide_serializable = np.array(train_devide).tolist()
+    return {"train_devide": train_devide_serializable}
 
-      <div>
-        {activeTab === "stochastic" && <InputDataTab />}
-        {activeTab === "paid" && <InputDataTabDet />}
-        {activeTab === "incurred" && <InputDataTabIncurred />}
-      </div>
-    </div>
-  );
-}
+
+@app.post("/calc/incurred/cl")
+async def calc_incurred_cl(payload: IncurredCLRequest):
+    incurred_data = payload.incurred_data_det
+    weights = payload.weights
+
+    data = {}
+    headers = np.arange(len(incurred_data[0]))
+    for i, col in enumerate(headers):
+        data[col] = []
+        for row in incurred_data:
+            value = row[i]
+            try:
+                num_value = float(value)
+            except (ValueError, TypeError):
+                num_value = None
+            data[col].append(num_value)
+
+    l_ij = pd.DataFrame(TriangleCalculator.elementwise_division(data))
+    w_ij = pd.DataFrame(weights)
+    p_ij = pd.DataFrame(data)
+    dev_j = TriangleCalculator.Dev_prem(p_ij, w_ij)
+
+    return {
+        "message": "Odebrano dane i zastosowano wagi",
+        "dev_j": list(dev_j),
+    }
