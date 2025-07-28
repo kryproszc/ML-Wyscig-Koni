@@ -1,5 +1,129 @@
 
 
+## incurred
+
+class IncurredTriangleRequest(BaseModel):
+    user_id: str
+    incurred_data_det: List[List[Union[str, int, float, None]]]
+    weights: Optional[List[List[int]]] = None
+
+
+class IncurredCLRequest(BaseModel):
+    user_id: str
+    incurred_data_det: List[List[Union[str, int, float, None]]]
+    weights: List[List[int]]
+
+@app.post("/calc/incurred/train_devide_incurred")
+async def calc_incurred_train_devide(payload: IncurredTriangleRequest):
+    data = {}
+    headers = [x for x in range(len(payload.incurred_data_det[0]))]
+    for i, col in enumerate(headers):
+        data[col] = []
+        for row in payload.incurred_data_det:
+            value = row[i]
+            try:
+                num_value = float(value)
+            except (ValueError, TypeError):
+                num_value = None
+            data[col].append(num_value)
+
+    train_devide = TriangleCalculator.elementwise_division(data)
+    train_devide_serializable = np.array(train_devide).tolist()
+    return {"train_devide": train_devide_serializable}
+
+
+@app.post("/calc/incurred/cl")
+async def calc_incurred_cl(payload: IncurredCLRequest):
+    incurred_data = payload.incurred_data_det
+    weights = payload.weights
+
+    data = {}
+    headers = np.arange(len(incurred_data[0]))
+    for i, col in enumerate(headers):
+        data[col] = []
+        for row in incurred_data:
+            value = row[i]
+            try:
+                num_value = float(value)
+            except (ValueError, TypeError):
+                num_value = None
+            data[col].append(num_value)
+
+    l_ij = pd.DataFrame(TriangleCalculator.elementwise_division(data))
+    w_ij = pd.DataFrame(weights)
+    p_ij = pd.DataFrame(data)
+    dev_j = TriangleCalculator.Dev_prem(p_ij, w_ij)
+
+    return {
+        "message": "Odebrano dane i zastosowano wagi",
+        "dev_j": list(dev_j),
+    }
+
+
+
+class SelectedDevJRequest(BaseModel):
+    user_id: Optional[str] = None
+    selected_dev_j: List[float]
+    selected_indexes: Optional[List[int]] = None
+    tail_values: Optional[List[float]] = None
+    full_dev_j: List[float]            # pełen wektor dev_j
+
+# -------------------------------------------------------------------
+# ENDPOINT – istniejący (Paid) NIE zmieniamy
+# -------------------------------------------------------------------
+@app.post("/calc/paid/selected_dev_j")
+async def calc_paid_selected_dev_j(payload: SelectedDevJRequest):
+    return _process_selected_dev_j(payload)   # <‑‑ patrz funkcja pomocnicza
+
+
+# -------------------------------------------------------------------
+# ENDPOINT – NOWY wariant Incurred
+# -------------------------------------------------------------------
+@app.post("/calc/incurred/selected_dev_j")
+async def calc_incurred_selected_dev_j(payload: SelectedDevJRequest):
+    return _process_selected_dev_j(payload)   # logika współdzielona
+
+
+# -------------------------------------------------------------------
+# WSPÓLNA FUNKCJA POMOCNICZA
+# -------------------------------------------------------------------
+def _process_selected_dev_j(payload: SelectedDevJRequest):
+    """
+    Wspólna logika dla wariantów Paid / Incurred.
+    """
+    # ▸ wektor pełny
+    full_ys = np.array(payload.full_dev_j, dtype=float)
+
+    # ▸ punkty wybrane przez użytkownika
+    xs = np.array(payload.selected_indexes or [], dtype=float) + 1  # indeksy 1‑based
+    ys = np.array(payload.selected_dev_j, dtype=float)
+
+    # ▸ dopasowanie krzywych
+    curve_list = ["Exponential", "Weibull", "Power", "Inverse Power"]
+    parameters_curve = calculator_det.parameters_curve_reservoir(
+        xs=xs, ys=ys, lista_krzywych=curve_list
+    )
+
+    # ▸ symulacja
+    tail = int(payload.tail_values[0]) if payload.tail_values else 0
+    xs_sim = np.array([i + 1 for i in range(len(full_ys) + tail)], dtype=float)
+    simulation_results = calculator_det.sim_data_curve_rezerwy(
+        xs_sim, curve_list, parameters_curve
+    )
+
+    # ▸ R²
+    f_curves_graph_real_choose = calculator_det.sim_data_curve_rezerwy(
+        xs, curve_list, parameters_curve
+    )
+    r2_curves_df = calculator_det.r2_curves(f_curves_graph_real_choose, ys)
+
+    return {
+        "simulation_results": simulation_results.to_dict(),
+        "r2_scores": r2_curves_df.to_dict(),
+    }
+
+
+
 class SaveVectorRequest(BaseModel):
     curve_name:        Optional[str]        = None   # symulowana krzywa CL
     coeffs:            Optional[List[float]] = None  # ⬆ jej współczynniki
