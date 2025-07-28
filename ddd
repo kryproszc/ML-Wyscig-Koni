@@ -1,12 +1,1 @@
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://172.25.210.87:3000",  # produkcja
-        "http://localhost:3000",     # dev
-        "http://127.0.0.1:3000"      # dev (niektóre przeglądarki tak traktują localhost)
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-uvicorn main:app --reload --port 8000
+NEXT_PUBLIC_API_URL=http://localhost:8000
