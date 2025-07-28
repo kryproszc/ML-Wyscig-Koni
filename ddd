@@ -1,8 +1,2 @@
-        skip = False
-        for val in arr:
-            if val < 1e-14:
-                skip = True
-                break
-        
-        if skip:
-            continue 
+git config --global user.name "Twoje Imię"
+git config --global user.email "twoj.email@example.com"
