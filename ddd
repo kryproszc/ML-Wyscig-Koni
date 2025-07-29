@@ -1,160 +1,451 @@
+import React, { useEffect, useState, useMemo } from "react";
+import {
+  ResponsiveContainer,
+  ComposedChart,
+  Scatter,
+  Line,
+  Area,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ReferenceLine,
+} from "recharts";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { TableDataCor } from "@/components/TableDataCor";
+import type { CorRowData } from "@/components/TableDataCor";
 
+/* -------------------------------------------------------------------------- */
+/*                                   TYPES                                    */
+/* -------------------------------------------------------------------------- */
 
-from sklearn.linear_model import LinearRegression
-from statsmodels.nonparametric.smoothers_lowess import lowess
-from pydantic import BaseModel, Field
+interface ObsRow {
+  origin_period: number;
+  dev_period: number;
+  cal_period: number;
+  residuals: number;
+  standard_residuals: number;
+  fitted_value: number;
+}
 
-from scipy.stats import spearmanr, norm
+interface LowessRow {
+  x: number;
+  lowess: number;
+}
 
+interface LowessResults {
+  fitted_value: LowessRow[];
+  origin_period: LowessRow[];
+  cal_period: LowessRow[];
+  dev_period: LowessRow[];
+}
 
-class TriangleInput(BaseModel):
-    triangle: List[List[Optional[float]]]
-    alpha: float = Field(1.0, ge=0.0, le=2.0)
-    ci: float = Field(0.5, ge=0.01, le=0.99)
+interface ResidualsResp {
+  obs_vs_fitted: ObsRow[];
+  lowess_results: LowessResults;
+}
 
-# 📊 Endpoint 1 – analiza residuals i LOWESS
-@app.post("/analyze-residuals")
-def analyze_residuals(data: TriangleInput):
-    max_len = max(len(row) for row in data.triangle)
-    padded = [row + [np.nan] * (max_len - len(row)) for row in data.triangle]
-    tri_arr = np.array(padded, dtype=float)
-    tri_df = pd.DataFrame(
-        tri_arr,
-        index=np.arange(1, tri_arr.shape[0] + 1),
-        columns=np.arange(1, tri_arr.shape[1] + 1),
-    )
+interface DependenceSummary {
+  results: { [key: string]: number | null };
+  range: { Lower: number | null; Upper: number | null };
+}
 
-    alpha = data.alpha
-    delta = 2 - alpha
+interface DensityPlot {
+  curve: [number, number][];
+  ci_area: [number, number][];
+  T_stat: number;
+  T_y: number;
+}
 
-    fitted_values, origin_periods, dev_periods, actual_vals, std_residuals = (
-        [] for _ in range(5)
-    )
+interface DependenceResp {
+  T_stat: number | null;
+  Var: number | null;
+  Range: [number | null, number | null];
+  ci: number;
+  summary: DependenceSummary;
+  density_plot?: DensityPlot;
+}
 
-    for j in range(tri_df.shape[1] - 1):
-        x_col, y_col = tri_df.iloc[:, j], tri_df.iloc[:, j + 1]
-        valid = ~(x_col.isna() | y_col.isna())
+interface DensityPlot2 {                     // ⬅️ NOWE
+  curve: [number, number][];
+  ci_area: [number, number][];
+  Z_stat: number;
+  Z_y: number;
+}
+type Totals = {
+  Z: number;
+  "E[Z]": number;
+  "Var[Z]": number;
+};
+interface Dep2Resp {
+  totals: Totals;
+  range:  { Lower: number; Upper: number };
+  ci: number;
+  density_plot?: DensityPlot2;
+}
+/* --- ⬆⧉ NOWE ⬆ ----------------------------------------------------------- */
 
-        x = x_col[valid].to_numpy(dtype=float).reshape(-1, 1)
-        y = y_col[valid].to_numpy(dtype=float)
-        w = 1 / np.power(x.flatten(), delta)
+/* -------------------------------------------------------------------------- */
+/*                                 STALE DANE                                 */
+/* -------------------------------------------------------------------------- */
 
-        lr = LinearRegression(fit_intercept=False)
-        lr.fit(x, y, sample_weight=w)
+const triangle = [
+  [5012, 8269, 10907, 11805, 13539, 16181, 18009, 18608, 18662, 18834],
+  [106, 4285, 5396, 10666, 13782, 15599, 15496, 16169, 16704, null],
+  [3410, 8992, 13873, 16141, 18735, 22214, 22863, 23466, null, null],
+  [5655, 11555, 15766, 21266, 23425, 26083, 27067, null, null, null],
+  [1092, 9565, 15836, 22169, 25955, 26180, null, null, null, null],
+  [1513, 6445, 11072, 12935, 15852, null, null, null, null, null],
+  [557, 4020, 10946, 12314, null, null, null, null, null, null],
+  [1351, 6947, 13112, null, null, null, null, null, null, null],
+  [3133, 5395, null, null, null, null, null, null, null, null],
+  [2063, null, null, null, null, null, null, null, null, null],
+];
 
-        y_hat = lr.predict(x)
-        residuals = y - y_hat
-        rss_w = np.sum(w * residuals**2)
-        n = len(y)
+const CHARTS = [
+  {
+    key: "fitted_value",
+    title: "Reszty vs. Dopasowane",
+    xLabel: "Fitted",
+    xAccessor: (d: ObsRow) => d.fitted_value,
+  },
+  {
+    key: "origin_period",
+    title: "Reszty vs. Origin period",
+    xLabel: "Origin period",
+    xAccessor: (d: ObsRow) => d.origin_period,
+  },
+  {
+    key: "cal_period",
+    title: "Reszty vs. Calendar period",
+    xLabel: "Calendar period",
+    xAccessor: (d: ObsRow) => d.cal_period,
+  },
+  {
+    key: "dev_period",
+    title: "Reszty vs. Development period",
+    xLabel: "Development period",
+    xAccessor: (d: ObsRow) => d.dev_period,
+  },
+] as const;
 
-        if n > 1:
-            sigma = np.sqrt(rss_w / (n - 1))
-            S = np.sum(w * (x.flatten() ** 2))
-            h = w * (x.flatten() ** 2) / S
-            stud_resid = residuals * np.sqrt(w) / (sigma * np.sqrt(1 - h))
-        else:
-            stud_resid = np.full_like(y, np.nan)
+/* -------------------------------------------------------------------------- */
+/*                                 KOMPONENT                                  */
+/* -------------------------------------------------------------------------- */
 
-        fitted_values.extend(y_hat)
-        origin_periods.extend(x_col.index[valid])
-        dev_periods.extend([j + 1] * n)
-        actual_vals.extend(y)
-        std_residuals.extend(stud_resid)
+export default function CheckAssumption() {
+  /* ------------------------------ STANY/UI -------------------------------- */
+  type TabKey = "model" | "assumptions" | "analysis" | "summary";
+  const [activeTab, setActiveTab] = useState<TabKey>("model");
 
-    residuals_raw = np.array(actual_vals) - np.array(fitted_values)
+  const [residualsData, setResidualsData] = useState<ResidualsResp | null>(null);
+  const [dependenceData, setDependenceData] = useState<DependenceResp | null>(null);
 
-    obs_vs_fitted = pd.DataFrame({
-        "origin_period": origin_periods,
-        "dev_period": np.array(dev_periods),
-        "cal_period": np.array(origin_periods) + np.array(dev_periods) - 1,
-        "residuals": residuals_raw,
-        "standard_residuals": std_residuals,
-        "fitted_value": fitted_values,
-    }).dropna().reset_index(drop=True)
+  /* --- ⬇⧉ NOWE ⬇ --------------------------------------------------------- */
+  const [dep2Data, setDep2Data] = useState<Dep2Resp | null>(null);
+  /* --- ⬆⧉ NOWE ⬆ --------------------------------------------------------- */
 
-    lowess_results = {
-        "fitted_value": pd.DataFrame(lowess(obs_vs_fitted["standard_residuals"], obs_vs_fitted["fitted_value"], frac=2/3), columns=["x", "lowess"]),
-        "origin_period": pd.DataFrame(lowess(obs_vs_fitted["standard_residuals"], obs_vs_fitted["origin_period"], frac=2/3), columns=["x", "lowess"]),
-        "cal_period": pd.DataFrame(lowess(obs_vs_fitted["standard_residuals"], obs_vs_fitted["cal_period"], frac=2/3), columns=["x", "lowess"]),
-        "dev_period": pd.DataFrame(lowess(obs_vs_fitted["standard_residuals"], obs_vs_fitted["dev_period"], frac=2/3), columns=["x", "lowess"]),
-    }
+  const [error, setError] = useState<string | null>(null);
 
-    return {
-        "obs_vs_fitted": obs_vs_fitted.to_dict(orient="records"),
-        "lowess_results": {
-            k: v.to_dict(orient="records") for k, v in lowess_results.items()
-        },
-    }
+  const [alpha, setAlpha] = useState(1.0);
+  const [ci, setCi] = useState(0.5);
 
-# 📈 Endpoint 2 – analiza zależności
-@app.post("/analyze-dependence")
-def analyze_dependence(data: TriangleInput):
-    triangle = np.array(data.triangle, dtype=np.float64)
-    ci = data.ci
+  /* --------------------------- POBIERANIE DANYCH --------------------------- */
 
+  // 🔁 residuals
+  useEffect(() => {
+    if (activeTab !== "assumptions" || residualsData) return;
+    fetch("http://localhost:8000/analyze-residuals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ triangle, alpha }),
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+      .then((json: ResidualsResp) => setResidualsData(json))
+      .catch(() => setError("Błąd pobierania danych z /analyze-residuals"));
+  }, [activeTab, alpha, residualsData]);
 
-    n_rows, n_cols = triangle.shape
-    ata = np.full((n_rows, n_cols - 1), np.nan)
+  // 🔁 dependence
+  useEffect(() => {
+    if (activeTab !== "analysis" || dependenceData) return;
+    fetch("http://localhost:8000/analyze-dependence", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ triangle, alpha: 1 - ci }),
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+      .then((json: DependenceResp) => setDependenceData(json))
+      .catch(() => setError("Błąd pobierania danych z /analyze-dependence"));
+  }, [activeTab, ci, dependenceData]);
 
-    for i in range(n_rows):
-        for j in range(n_cols - 1):
-            if not np.isnan(triangle[i, j]) and not np.isnan(triangle[i, j + 1]) and triangle[i, j] != 0:
-                ata[i, j] = triangle[i, j + 1] / triangle[i, j]
+  /* --- ⬇⧉ NOWE ⬇  (fetch /analyze-dep2) ---------------------------------- */
+  useEffect(() => {
+    if (activeTab !== "summary" || dep2Data) return;
+    fetch("http://localhost:8000/analyze-dep2", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ triangle, ci }),
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+      .then((json: Dep2Resp) => setDep2Data(json))
+      .catch(() => setError("Błąd pobierania danych z /analyze-dep2"));
+  }, [activeTab, ci, dep2Data]);
+  /* --- ⬆⧉ NOWE ⬆ --------------------------------------------------------- */
 
-    T_k = []
-    for i in range(n_cols - 3):
-        col1 = ata[:, i]
-        col2 = ata[:, i + 1]
-        valid = ~np.isnan(col1) & ~np.isnan(col2)
-        if np.sum(valid) > 1:
-            rho, _ = spearmanr(col1[valid], col2[valid])
-            T_k.append(rho)
+  /* -------------------------- PRZYGOTOWANIE DANYCH ------------------------- */
 
-    if len(T_k) > 0:
-        weights = np.arange(len(T_k), 0, -1)
-        T_final = np.average(T_k, weights=weights)
-        Var_T = 1 / ((n_cols - 2) * (n_cols - 3) / 2)
-        Z = norm.ppf(ci + (1 - ci) / 2)
-        range_ = [-Z * np.sqrt(Var_T), Z * np.sqrt(Var_T)]
-    else:
-        T_final = None
-        Var_T = None
-        range_ = [None, None]
+  const chartData = useMemo(() => {
+    if (!residualsData) return [];
+    return CHARTS.map((cfg) => ({
+      ...cfg,
+      scatter: residualsData.obs_vs_fitted.map((d) => ({
+        x: cfg.xAccessor(d),
+        y: d.standard_residuals,
+      })),
+      lowess: residualsData.lowess_results[cfg.key].map((d) => ({
+        x: d.x,
+        y: d.lowess,
+      })),
+    }));
+  }, [residualsData]);
 
-    # 🔷 Gęstość do wykresu
-    density_data = None
-    if T_final is not None and Var_T is not None:
-        sd = np.sqrt(Var_T)
+  const formattedSummary: CorRowData[] = useMemo(() => {
+    if (!dependenceData) return [];
+    return [
+      ["T", dependenceData.summary.results["T"] ?? null],
+      ["E[T]", dependenceData.summary.results["E[T]"] ?? null],
+      ["Var[T]", dependenceData.summary.results["Var[T]"] ?? null],
+      ["Lower", dependenceData.summary.range.Lower ?? null],
+      ["Upper", dependenceData.summary.range.Upper ?? null],
+    ];
+  }, [dependenceData]);
 
-        # Krzywa normalna (pełna)
-        x_seq = np.linspace(-1, 1, 500)  # 500 punktów dla lepszej gładkości
-        y_seq = norm.pdf(x_seq, loc=0, scale=sd)
-        # Obszar pod przedziałem ufności (zacieniowany)
-        ci_x = np.arange(range_[0], range_[1], 0.01)
-        ci_y = norm.pdf(ci_x, loc=0, scale=sd)
+  /* --- ⬇⧉ NOWE ⬇  (dane do tabeli summary) -------------------------------- */
+const summaryTable: CorRowData[] = useMemo(() => {
+  if (!dep2Data) return [];
+  return [
+    ["Z",      dep2Data.totals["Z"]],
+    ["E[Z]",   dep2Data.totals["E[Z]"]],
+    ["Var[Z]", dep2Data.totals["Var[Z]"]],
+    ["Lower",  dep2Data.range.Lower],
+    ["Upper",  dep2Data.range.Upper],
+  ];
+}, [dep2Data]);
 
-        density_data = {
-            "curve": list(zip(x_seq, y_seq)),
-            "ci_area": list(zip(ci_x, ci_y)),
-            "T_stat": T_final,
-            "T_y": norm.pdf(T_final, loc=0, scale=sd)
-        }
+  /* --- ⬆⧉ NOWE ⬆ --------------------------------------------------------- */
 
-    return {
-        "T_stat": T_final,
-        "Var": Var_T,
-        "Range": range_,
-        "ci": ci,
-        "summary": {
-            "results": {
-                "T": T_final,
-                "E[T]": 0,
-                "Var[T]": Var_T
-            },
-            "range": {
-                "Lower": range_[0],
-                "Upper": range_[1]
+  /* ------------------------------------------------------------------------ */
+  /*                                RENDER                                    */
+  /* ------------------------------------------------------------------------ */
+
+/* -------- przed returnem, tuż nad  return ( ... )  -------------------- */
+/* =======================  BLOK RENDERUJĄCY  ========================== */
+return (
+  <div>
+    {/* 🔘 Zakładki */}
+    <nav className="flex gap-10 border-b border-slate-700 mb-6">
+      {[
+        { key: "model",       label: "Model" },
+        { key: "assumptions", label: "Analiza reszt" },
+        { key: "analysis",    label: "Analiza korelacji czynników rozwoju" },
+        { key: "summary",     label: "Analiza niezależności lat wypadkowych" },
+      ].map(({ key, label }) => (
+        <button
+          key={key}
+          onClick={() => setActiveTab(key as TabKey)}
+          className={`
+            relative pb-2 text-sm sm:text-base font-semibold transition-colors
+            ${
+              activeTab === key
+                ? "text-sky-400 after:absolute after:left-0 after:bottom-0 after:h-0.5 after:w-full after:bg-sky-400"
+                : "text-slate-300 hover:text-sky-300"
             }
-        },
-        "density_plot": density_data
-    }
+          `}
+        >
+          {label}
+        </button>
+      ))}
+    </nav>
+
+    {/* 🎚️ suwaki alpha / ci */}
+    {activeTab === "assumptions" && (
+      <div className="mb-4 text-white">
+        <label className="mr-2 font-medium">Alpha (dla wag):</label>
+        <input
+          type="range"
+          min="0"
+          max="2"
+          step="0.01"
+          value={alpha}
+          onChange={(e) => setAlpha(parseFloat(e.target.value))}
+          className="w-64"
+        />
+        <span className="ml-3">{alpha.toFixed(2)}</span>
+      </div>
+    )}
+    {activeTab === "analysis" && (
+      <div className="mb-4 text-white">
+        <label className="mr-2 font-medium">Przedział ufności (ci):</label>
+        <input
+          type="range"
+          min="0.01"
+          max="0.99"
+          step="0.01"
+          value={ci}
+          onChange={(e) => setCi(parseFloat(e.target.value))}
+          className="w-64"
+        />
+        <span className="ml-3">{(ci * 100).toFixed(0)}%</span>
+      </div>
+    )}
+
+    {/* 🖼️ ASSUMPTIONS – wykresy reszt */}
+    {activeTab === "assumptions" && (
+      <>
+        {error && <p className="text-destructive">{error}</p>}
+        {!residualsData && <p className="italic">Ładowanie…</p>}
+        {residualsData && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {chartData.map(({ title, xLabel, scatter, lowess }, idx) => (
+              <Card key={idx} className="bg-gray-500">
+                <CardHeader className="text-base font-medium">{title}</CardHeader>
+                <CardContent className="p-6 bg-gray-300">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <ComposedChart data={scatter} margin={{ top: 20, right: 20, bottom: 30, left: 50 }}>
+                      <CartesianGrid stroke="#666" strokeOpacity={0.5} strokeDasharray="3 3" />
+                      <XAxis type="number" dataKey="x" label={{ value: xLabel, position: "insideBottom", offset: -10, fill: "#333" }} />
+                      <YAxis
+                        dataKey="y"
+                        type="number"
+                        domain={[-2, 2]}
+                        ticks={[-2, -1, 0, 1, 2]}
+                        label={{ value: "Standardised residuals", angle: -90, position: "insideLeft", offset: 10, fill: "#333" }}
+                        axisLine={{ stroke: "#666" }}
+                        tick={{ fill: "#333" }}
+                      />
+                      <Tooltip formatter={(v: number) => v.toFixed(3)} contentStyle={{ background: "#e5e7eb" }} />
+                      <Scatter name="Residuals" data={scatter} fill="#000" shape="circle" />
+                      <Line name="LOWESS" type="monotone" data={lowess} dataKey="y" dot={false} stroke="#ff5252" strokeWidth={2} />
+                      <ReferenceLine y={0} strokeDasharray="4 4" stroke="#555" />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </>
+    )}
+
+    {/* 📊 ANALYSIS – Spearman T */}
+    {activeTab === "analysis" && (
+      <>
+        {error && <p className="text-destructive">{error}</p>}
+        {!dependenceData && <p className="italic">Ładowanie…</p>}
+        {dependenceData && (
+          <div className="flex flex-col items-center gap-8 text-white px-4">
+            <h3 className="text-lg font-semibold mb-2">Analiza zależności w trójkącie</h3>
+            <div className="w-full max-w-xl flex flex-col items-center gap-2 mb-6">
+              <label htmlFor="ci-range" className="text-sm font-medium">Przedział ufności (ci):</label>
+              <input
+                id="ci-range"
+                type="range"
+                min={0.5}
+                max={0.99}
+                step={0.01}
+                value={ci}
+                onChange={(e) => setCi(parseFloat(e.target.value))}
+                className="w-full"
+              />
+              <span className="text-xs">{Math.round(ci * 100)}%</span>
+            </div>
+
+            <TableDataCor data={formattedSummary} />
+
+            {dependenceData.density_plot && (
+              <div className="bg-white border border-gray-300 rounded shadow p-4 text-gray-800 w-full max-w-2xl">
+                <h4 className="text-sm font-medium mb-2">Gęstość rozkładu testu</h4>
+                <ResponsiveContainer width="100%" height={300}>
+                  <ComposedChart data={dependenceData.density_plot.curve.map(([x, y]) => ({ x, y }))}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" dataKey="x" domain={[-1, 1]} />
+                    <YAxis />
+                    <Tooltip formatter={(v: number) => v.toFixed(3)} />
+                    <Line type="monotone" dataKey="y" stroke="#000" dot={false} strokeWidth={1.5} />
+                    <Area
+                      type="monotone"
+                      dataKey="y"
+                      data={dependenceData.density_plot.ci_area.map(([x, y]) => ({ x, y }))}
+                      fill="#999"
+                      fillOpacity={0.4}
+                      isAnimationActive={false}
+                    />
+                    <ReferenceLine x={dependenceData.density_plot.T_stat} stroke="red" strokeWidth={2} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+        )}
+      </>
+    )}
+
+    {/* 🧾 SUMMARY – kalendarzowe lata */}
+    {activeTab === "summary" && (
+      <div className="flex flex-col items-center gap-6 text-white px-4">
+        {error && <p className="text-destructive">{error}</p>}
+        {!dep2Data && <p className="italic">Ładowanie…</p>}
+
+        {dep2Data && (
+          <>
+            <h3 className="text-lg font-semibold">Test niezależności – kalendarzowe lata wypadkowe</h3>
+            <TableDataCor data={summaryTable} />
+
+            {(() => {
+              /* --------- przygotowanie danych --------- */
+              const dens = dep2Data.density_plot;
+              if (!dens) return null;
+
+              const curve  = dens.curve;
+              const ciArea = dens.ci_area;
+              const Z      = dens.Z_stat;
+
+const domain: [number, number] = [
+  Math.min(curve[0]![0], Z),
+  Math.max(curve[curve.length - 1]![0], Z),
+];
+const EZ = dep2Data.totals["E[Z]"];   // ⬅️  średnia
+
+              /* --------------- wykres ----------------- */
+              return (
+                <div className="bg-white border border-gray-300 rounded shadow p-4 text-gray-800 w-full max-w-2xl">
+                  <h4 className="text-sm font-medium mb-2">Gęstość rozkładu testu</h4>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <ComposedChart data={curve.map(([x, y]) => ({ x, y }))}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis type="number" dataKey="x" domain={domain} />
+                      <YAxis />
+                      <Tooltip formatter={(v: number) => v.toFixed(3)} />
+                      <Line type="monotone" dataKey="y" stroke="#000" dot={false} strokeWidth={1.5} />
+                      <Area
+                        type="monotone"
+                        dataKey="y"
+                        data={ciArea.map(([x, y]) => ({ x, y }))}
+                        fill="#999"
+                        fillOpacity={0.4}
+                        isAnimationActive={false}
+                      />
+                      {/* 🔴 pionowa linia w punkcie Z */}
+                      <ReferenceLine x={EZ} stroke="red" strokeWidth={2} isFront />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              );
+            })()}
+          </>
+        )}
+      </div>
+    )}
+  </div>
+);
+}
