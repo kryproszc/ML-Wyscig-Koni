@@ -1,324 +1,160 @@
 
-class IncurredTriangleRequest(BaseModel):
-    user_id: str
-    incurred_data_det: List[List[Union[str, int, float, None]]]
-    weights: Optional[List[List[int]]] = None
+
+from sklearn.linear_model import LinearRegression
+from statsmodels.nonparametric.smoothers_lowess import lowess
+from pydantic import BaseModel, Field
+
+from scipy.stats import spearmanr, norm
 
 
-class IncurredCLRequest(BaseModel):
-    user_id: str
-    incurred_data_det: List[List[Union[str, int, float, None]]]
-    weights: List[List[int]]
+class TriangleInput(BaseModel):
+    triangle: List[List[Optional[float]]]
+    alpha: float = Field(1.0, ge=0.0, le=2.0)
+    ci: float = Field(0.5, ge=0.01, le=0.99)
 
-@app.post("/calc/incurred/train_devide_incurred")
-async def calc_incurred_train_devide(payload: IncurredTriangleRequest):
-    data = {}
-    headers = [x for x in range(len(payload.incurred_data_det[0]))]
-    for i, col in enumerate(headers):
-        data[col] = []
-        for row in payload.incurred_data_det:
-            value = row[i]
-            try:
-                num_value = float(value)
-            except (ValueError, TypeError):
-                num_value = None
-            data[col].append(num_value)
+# 📊 Endpoint 1 – analiza residuals i LOWESS
+@app.post("/analyze-residuals")
+def analyze_residuals(data: TriangleInput):
+    max_len = max(len(row) for row in data.triangle)
+    padded = [row + [np.nan] * (max_len - len(row)) for row in data.triangle]
+    tri_arr = np.array(padded, dtype=float)
+    tri_df = pd.DataFrame(
+        tri_arr,
+        index=np.arange(1, tri_arr.shape[0] + 1),
+        columns=np.arange(1, tri_arr.shape[1] + 1),
+    )
 
-    train_devide = TriangleCalculator.elementwise_division(data)
-    train_devide_serializable = np.array(train_devide).tolist()
-    return {"train_devide": train_devide_serializable}
+    alpha = data.alpha
+    delta = 2 - alpha
 
+    fitted_values, origin_periods, dev_periods, actual_vals, std_residuals = (
+        [] for _ in range(5)
+    )
 
-@app.post("/calc/incurred/cl")
-async def calc_incurred_cl(payload: IncurredCLRequest):
-    incurred_data = payload.incurred_data_det
-    weights = payload.weights
+    for j in range(tri_df.shape[1] - 1):
+        x_col, y_col = tri_df.iloc[:, j], tri_df.iloc[:, j + 1]
+        valid = ~(x_col.isna() | y_col.isna())
 
-    data = {}
-    headers = np.arange(len(incurred_data[0]))
-    for i, col in enumerate(headers):
-        data[col] = []
-        for row in incurred_data:
-            value = row[i]
-            try:
-                num_value = float(value)
-            except (ValueError, TypeError):
-                num_value = None
-            data[col].append(num_value)
+        x = x_col[valid].to_numpy(dtype=float).reshape(-1, 1)
+        y = y_col[valid].to_numpy(dtype=float)
+        w = 1 / np.power(x.flatten(), delta)
 
-    l_ij = pd.DataFrame(TriangleCalculator.elementwise_division(data))
-    w_ij = pd.DataFrame(weights)
-    p_ij = pd.DataFrame(data)
-    dev_j = TriangleCalculator.Dev_prem(p_ij, w_ij)
+        lr = LinearRegression(fit_intercept=False)
+        lr.fit(x, y, sample_weight=w)
+
+        y_hat = lr.predict(x)
+        residuals = y - y_hat
+        rss_w = np.sum(w * residuals**2)
+        n = len(y)
+
+        if n > 1:
+            sigma = np.sqrt(rss_w / (n - 1))
+            S = np.sum(w * (x.flatten() ** 2))
+            h = w * (x.flatten() ** 2) / S
+            stud_resid = residuals * np.sqrt(w) / (sigma * np.sqrt(1 - h))
+        else:
+            stud_resid = np.full_like(y, np.nan)
+
+        fitted_values.extend(y_hat)
+        origin_periods.extend(x_col.index[valid])
+        dev_periods.extend([j + 1] * n)
+        actual_vals.extend(y)
+        std_residuals.extend(stud_resid)
+
+    residuals_raw = np.array(actual_vals) - np.array(fitted_values)
+
+    obs_vs_fitted = pd.DataFrame({
+        "origin_period": origin_periods,
+        "dev_period": np.array(dev_periods),
+        "cal_period": np.array(origin_periods) + np.array(dev_periods) - 1,
+        "residuals": residuals_raw,
+        "standard_residuals": std_residuals,
+        "fitted_value": fitted_values,
+    }).dropna().reset_index(drop=True)
+
+    lowess_results = {
+        "fitted_value": pd.DataFrame(lowess(obs_vs_fitted["standard_residuals"], obs_vs_fitted["fitted_value"], frac=2/3), columns=["x", "lowess"]),
+        "origin_period": pd.DataFrame(lowess(obs_vs_fitted["standard_residuals"], obs_vs_fitted["origin_period"], frac=2/3), columns=["x", "lowess"]),
+        "cal_period": pd.DataFrame(lowess(obs_vs_fitted["standard_residuals"], obs_vs_fitted["cal_period"], frac=2/3), columns=["x", "lowess"]),
+        "dev_period": pd.DataFrame(lowess(obs_vs_fitted["standard_residuals"], obs_vs_fitted["dev_period"], frac=2/3), columns=["x", "lowess"]),
+    }
 
     return {
-        "message": "Odebrano dane i zastosowano wagi",
-        "dev_j": list(dev_j),
+        "obs_vs_fitted": obs_vs_fitted.to_dict(orient="records"),
+        "lowess_results": {
+            k: v.to_dict(orient="records") for k, v in lowess_results.items()
+        },
     }
 
+# 📈 Endpoint 2 – analiza zależności
+@app.post("/analyze-dependence")
+def analyze_dependence(data: TriangleInput):
+    triangle = np.array(data.triangle, dtype=np.float64)
+    ci = data.ci
 
 
-class SelectedDevJRequest(BaseModel):
-    user_id: Optional[str] = None
-    selected_dev_j: List[float]
-    selected_indexes: Optional[List[int]] = None
-    tail_values: Optional[List[float]] = None
-    full_dev_j: List[float]            # pełen wektor dev_j
+    n_rows, n_cols = triangle.shape
+    ata = np.full((n_rows, n_cols - 1), np.nan)
 
-# -------------------------------------------------------------------
-# ENDPOINT – istniejący (Paid) NIE zmieniamy
-# -------------------------------------------------------------------
-@app.post("/calc/paid/selected_dev_j")
-async def calc_paid_selected_dev_j(payload: SelectedDevJRequest):
-    return _process_selected_dev_j(payload)   # <‑‑ patrz funkcja pomocnicza
+    for i in range(n_rows):
+        for j in range(n_cols - 1):
+            if not np.isnan(triangle[i, j]) and not np.isnan(triangle[i, j + 1]) and triangle[i, j] != 0:
+                ata[i, j] = triangle[i, j + 1] / triangle[i, j]
 
+    T_k = []
+    for i in range(n_cols - 3):
+        col1 = ata[:, i]
+        col2 = ata[:, i + 1]
+        valid = ~np.isnan(col1) & ~np.isnan(col2)
+        if np.sum(valid) > 1:
+            rho, _ = spearmanr(col1[valid], col2[valid])
+            T_k.append(rho)
 
-# -------------------------------------------------------------------
-# ENDPOINT – NOWY wariant Incurred
-# -------------------------------------------------------------------
-@app.post("/calc/incurred/selected_dev_j")
-async def calc_incurred_selected_dev_j(payload: SelectedDevJRequest):
-    return _process_selected_dev_j(payload)   # logika współdzielona
-
-
-# -------------------------------------------------------------------
-# WSPÓLNA FUNKCJA POMOCNICZA
-# -------------------------------------------------------------------
-def _process_selected_dev_j(payload: SelectedDevJRequest):
-    """
-    Wspólna logika dla wariantów Paid / Incurred.
-    """
-    # ▸ wektor pełny
-    full_ys = np.array(payload.full_dev_j, dtype=float)
-
-    # ▸ punkty wybrane przez użytkownika
-    xs = np.array(payload.selected_indexes or [], dtype=float) + 1  # indeksy 1‑based
-    ys = np.array(payload.selected_dev_j, dtype=float)
-
-    # ▸ dopasowanie krzywych
-    curve_list = ["Exponential", "Weibull", "Power", "Inverse Power"]
-    parameters_curve = calculator_det.parameters_curve_reservoir(
-        xs=xs, ys=ys, lista_krzywych=curve_list
-    )
-
-    # ▸ symulacja
-    tail = int(payload.tail_values[0]) if payload.tail_values else 0
-    xs_sim = np.array([i + 1 for i in range(len(full_ys) + tail)], dtype=float)
-    simulation_results = calculator_det.sim_data_curve_rezerwy(
-        xs_sim, curve_list, parameters_curve
-    )
-
-    # ▸ R²
-    f_curves_graph_real_choose = calculator_det.sim_data_curve_rezerwy(
-        xs, curve_list, parameters_curve
-    )
-    r2_curves_df = calculator_det.r2_curves(f_curves_graph_real_choose, ys)
-
-    return {
-        "simulation_results": simulation_results.to_dict(),
-        "r2_scores": r2_curves_df.to_dict(),
-    }
-
-
-
-class SaveVectorRequest(BaseModel):
-    curve_name:        Optional[str]        = None   # symulowana krzywa CL
-    coeffs:            Optional[List[float]] = None  # ⬆ jej współczynniki
-    volume:            Optional[int]         = None  # dev_j z konkretnego volume
-    values:            Optional[List[float]] = None  # ⬆ jego wektor dev_j
-    final_dev_vector:  Optional[List[float]] = None  # gotowy dev_final / combined
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-#  2. Cały payload: trójkąt incurred + dokładnie 2 zestawy współczynników
-# ──────────────────────────────────────────────────────────────────────────────
-class SaveVectorPayload(BaseModel):
-    incurred_data_det: List[List[Optional[float]]]
-    coeff_sets:        List[SaveVectorRequest]
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-#  3. Pomocnicza funkcja – wyciąga wektor z SaveVectorRequest
-# ──────────────────────────────────────────────────────────────────────────────
-def _extract_vector(p: SaveVectorRequest) -> List[float]:
-    if p.curve_name and p.coeffs:
-        return p.coeffs
-    if p.volume is not None and p.values:
-        return p.values
-    if p.final_dev_vector:
-        return p.final_dev_vector
-    raise HTTPException(
-        status_code=422,
-        detail="❌ Nieprawidłowy format jednego z obiektów (brak danych wektora).",
-    )
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-#  4. Endpoint  POST /calc/incurred/save_vector
-# ──────────────────────────────────────────────────────────────────────────────
-@app.post("/calc/incurred/save_vector")
-async def save_vector_incurred(payload: SaveVectorPayload):
-    # 4.a – walidacja liczby zestawów
-    if len(payload.coeff_sets) != 2:
-        raise HTTPException(
-            status_code=400,
-            detail="❌ Oczekiwano dokładnie 2 zestawów współczynników (A i B).",
-        )
-
-    # 4.b – wyciągamy dwa wektory
-    vector_a = _extract_vector(payload.coeff_sets[0])
-    vector_b = _extract_vector(payload.coeff_sets[1])
-
-    # 4.c – budujemy DataFrame z trójkąta incurred
-    df_triangle = (
-        pd.DataFrame(payload.incurred_data_det)
-        .apply(pd.to_numeric, errors="coerce")
-        .drop(columns="AY", errors="ignore")          # jeśli nagłówek AY istnieje
-    )
-
-    # 4.d – projekcje (używamy Twojej istniejącej util‑funkcji)
-    df_proj_a = calculator_det.triangle_forward(df_triangle, vector_a, 1)
-    df_proj_b = calculator_det.triangle_forward(df_triangle, vector_b, 1)
-
-    # 4.e – ostatnie nie‑NaN‑y w wierszach
-    last_a = df_proj_a.apply(lambda r: r.dropna().iloc[-1], axis=1)
-    last_b = df_proj_b.apply(lambda r: r.dropna().iloc[-1], axis=1)
-
-    diff_abs = last_a - last_b
-    diff_pct = (diff_abs / last_a.replace({0: pd.NA})) * 100
-
-    # 4.f – tabela porównania
-    df_cmp = pd.DataFrame(
-        {
-            "Wiersz":        range(len(df_proj_a)),
-            "Projection A":  last_a.round(2),
-            "Projection B":  last_b.round(2),
-            "Różnica":       diff_abs.round(2),
-            "Różnica %":     diff_pct.round(2),
-        }
-    )
-
-    # wiersz SUMA
-    sum_a, sum_b = last_a.sum(), last_b.sum()
-    sum_diff     = sum_a - sum_b
-    sum_pct      = (sum_diff / sum_a * 100) if sum_a != 0 else None
-
-    df_cmp.loc["Suma"] = {
-        "Wiersz":       "Suma",
-        "Projection A": round(sum_a, 2),
-        "Projection B": round(sum_b, 2),
-        "Różnica":      round(sum_diff, 2),
-        "Różnica %":    round(sum_pct, 2) if sum_pct is not None else None,
-    }
-
-    # 4.g – zwrot dla front‑endu
-    return {
-        "wektor_a":      vector_a,
-        "wektor_b":      vector_b,
-        "triangle_rows": len(payload.incurred_data_det),
-        "comparison":    df_cmp.to_dict(orient="records"),
-    }
-
-
-# porownanie wynikow #########################
-
-class SaveVectorRequest(BaseModel):
-    curve_name:        Optional[str]   = None
-    coeffs:            Optional[List[float]] = None
-    volume:            Optional[int]   = None
-    values:            Optional[List[float]] = None
-    final_dev_vector:  Optional[List[float]] = None
-
-
-# ==================================================================================
-# 2️⃣  NOWY  model ładujący  ⟶  Paid + Incurred  razem
-# ==================================================================================
-class SaveSummaryPayload(BaseModel):
-    paid_data_det:     List[List[Optional[float]]]
-    incurred_data_det: List[List[Optional[float]]]
-
-    paid_coeff_set:     SaveVectorRequest
-    incurred_coeff_set: SaveVectorRequest
-
-
-# ==================================================================================
-# 3️⃣  HELPER – zamienia SaveVectorRequest → wektor  (ta sama logika co wcześniej)
-# ==================================================================================
-from fastapi import HTTPException
-
-def extract_vector(req: SaveVectorRequest) -> List[float]:
-    if req.curve_name and req.coeffs:
-        return req.coeffs
-    elif req.volume is not None and req.values:
-        return req.values
-    elif req.final_dev_vector:
-        return req.final_dev_vector
+    if len(T_k) > 0:
+        weights = np.arange(len(T_k), 0, -1)
+        T_final = np.average(T_k, weights=weights)
+        Var_T = 1 / ((n_cols - 2) * (n_cols - 3) / 2)
+        Z = norm.ppf(ci + (1 - ci) / 2)
+        range_ = [-Z * np.sqrt(Var_T), Z * np.sqrt(Var_T)]
     else:
-        raise HTTPException(
-            status_code=422,
-            detail="❌ Nieprawidłowy format obiektu współczynników.",
-        )
+        T_final = None
+        Var_T = None
+        range_ = [None, None]
 
+    # 🔷 Gęstość do wykresu
+    density_data = None
+    if T_final is not None and Var_T is not None:
+        sd = np.sqrt(Var_T)
 
-# ==================================================================================
-# 4️⃣  ENDPOINT  POST /calc/summary/save_vector
-# ==================================================================================
-from fastapi import status
+        # Krzywa normalna (pełna)
+        x_seq = np.linspace(-1, 1, 500)  # 500 punktów dla lepszej gładkości
+        y_seq = norm.pdf(x_seq, loc=0, scale=sd)
+        # Obszar pod przedziałem ufności (zacieniowany)
+        ci_x = np.arange(range_[0], range_[1], 0.01)
+        ci_y = norm.pdf(ci_x, loc=0, scale=sd)
 
-@app.post("/calc/summary/save_vector", status_code=status.HTTP_201_CREATED)
-async def save_summary_vector(payload: SaveSummaryPayload):
-    """
-    * przyjmuje pojedynczy zestaw współczynników i trójkąt dla Paid,
-      oraz pojedynczy zestaw współczynników i trójkąt dla Incurred,
-    * liczy projekcję oddzielnie dla każdego,
-    * zwraca:
-        - triangle_paid / incurred,
-        - vec_paid / incurred,
-        - projection_paid / incurred (ostatnie wartości w wierszach),
-        - sumy.
-    """
-
-    # ─── 1. wyciągamy wektory ────────────────────────────────────────
-    try:
-        vec_paid = _extract_vector(payload.paid_coeff_set)
-        vec_inc  = _extract_vector(payload.incurred_coeff_set)
-    except HTTPException as e:
-        raise e
-
-    # ─── 2. DataFrame’y z trójkątów ─────────────────────────────────
-    df_paid = (
-        pd.DataFrame(payload.paid_data_det)
-        .apply(pd.to_numeric, errors="coerce")
-        .drop(columns="AY", errors="ignore")
-    )
-    df_inc = (
-        pd.DataFrame(payload.incurred_data_det)
-        .apply(pd.to_numeric, errors="coerce")
-        .drop(columns="AY", errors="ignore")
-    )
-
-    # ─── 3. projekcje dla każdego z osobna ──────────────────────────
-    proj_paid = calculator_det.triangle_forward(df_paid, vec_paid, 1)
-    proj_inc  = calculator_det.triangle_forward(df_inc,  vec_inc,  1)
-
-    last_paid = proj_paid.apply(lambda r: r.dropna().iloc[-1], axis=1)
-    last_inc  = proj_inc.apply(lambda r: r.dropna().iloc[-1], axis=1)
-
- 
-    sum_paid = last_paid.sum()
-    sum_inc  = last_inc.sum()
-
-    df_two = pd.DataFrame(
-        {
-            "Paid":     last_paid.round(2),
-            "Incurred": last_inc.round(2),
+        density_data = {
+            "curve": list(zip(x_seq, y_seq)),
+            "ci_area": list(zip(ci_x, ci_y)),
+            "T_stat": T_final,
+            "T_y": norm.pdf(T_final, loc=0, scale=sd)
         }
-    )
 
     return {
-        "triangle_paid"     : payload.paid_data_det,
-        "triangle_incurred" : payload.incurred_data_det,
-        "vec_paid"          : vec_paid,
-        "vec_incurred"      : vec_inc,
-        "comparison"        : df_two.to_dict(orient="records"),   # ⬅️ tylko 2 kolumny
+        "T_stat": T_final,
+        "Var": Var_T,
+        "Range": range_,
+        "ci": ci,
+        "summary": {
+            "results": {
+                "T": T_final,
+                "E[T]": 0,
+                "Var[T]": Var_T
+            },
+            "range": {
+                "Lower": range_[0],
+                "Upper": range_[1]
+            }
+        },
+        "density_plot": density_data
     }
