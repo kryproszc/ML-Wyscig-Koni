@@ -1,7 +1,4 @@
 
-
-## incurred
-
 class IncurredTriangleRequest(BaseModel):
     user_id: str
     incurred_data_det: List[List[Union[str, int, float, None]]]
@@ -220,4 +217,108 @@ async def save_vector_incurred(payload: SaveVectorPayload):
         "wektor_b":      vector_b,
         "triangle_rows": len(payload.incurred_data_det),
         "comparison":    df_cmp.to_dict(orient="records"),
+    }
+
+
+# porownanie wynikow #########################
+
+class SaveVectorRequest(BaseModel):
+    curve_name:        Optional[str]   = None
+    coeffs:            Optional[List[float]] = None
+    volume:            Optional[int]   = None
+    values:            Optional[List[float]] = None
+    final_dev_vector:  Optional[List[float]] = None
+
+
+# ==================================================================================
+# 2️⃣  NOWY  model ładujący  ⟶  Paid + Incurred  razem
+# ==================================================================================
+class SaveSummaryPayload(BaseModel):
+    paid_data_det:     List[List[Optional[float]]]
+    incurred_data_det: List[List[Optional[float]]]
+
+    paid_coeff_set:     SaveVectorRequest
+    incurred_coeff_set: SaveVectorRequest
+
+
+# ==================================================================================
+# 3️⃣  HELPER – zamienia SaveVectorRequest → wektor  (ta sama logika co wcześniej)
+# ==================================================================================
+from fastapi import HTTPException
+
+def extract_vector(req: SaveVectorRequest) -> List[float]:
+    if req.curve_name and req.coeffs:
+        return req.coeffs
+    elif req.volume is not None and req.values:
+        return req.values
+    elif req.final_dev_vector:
+        return req.final_dev_vector
+    else:
+        raise HTTPException(
+            status_code=422,
+            detail="❌ Nieprawidłowy format obiektu współczynników.",
+        )
+
+
+# ==================================================================================
+# 4️⃣  ENDPOINT  POST /calc/summary/save_vector
+# ==================================================================================
+from fastapi import status
+
+@app.post("/calc/summary/save_vector", status_code=status.HTTP_201_CREATED)
+async def save_summary_vector(payload: SaveSummaryPayload):
+    """
+    * przyjmuje pojedynczy zestaw współczynników i trójkąt dla Paid,
+      oraz pojedynczy zestaw współczynników i trójkąt dla Incurred,
+    * liczy projekcję oddzielnie dla każdego,
+    * zwraca:
+        - triangle_paid / incurred,
+        - vec_paid / incurred,
+        - projection_paid / incurred (ostatnie wartości w wierszach),
+        - sumy.
+    """
+
+    # ─── 1. wyciągamy wektory ────────────────────────────────────────
+    try:
+        vec_paid = _extract_vector(payload.paid_coeff_set)
+        vec_inc  = _extract_vector(payload.incurred_coeff_set)
+    except HTTPException as e:
+        raise e
+
+    # ─── 2. DataFrame’y z trójkątów ─────────────────────────────────
+    df_paid = (
+        pd.DataFrame(payload.paid_data_det)
+        .apply(pd.to_numeric, errors="coerce")
+        .drop(columns="AY", errors="ignore")
+    )
+    df_inc = (
+        pd.DataFrame(payload.incurred_data_det)
+        .apply(pd.to_numeric, errors="coerce")
+        .drop(columns="AY", errors="ignore")
+    )
+
+    # ─── 3. projekcje dla każdego z osobna ──────────────────────────
+    proj_paid = calculator_det.triangle_forward(df_paid, vec_paid, 1)
+    proj_inc  = calculator_det.triangle_forward(df_inc,  vec_inc,  1)
+
+    last_paid = proj_paid.apply(lambda r: r.dropna().iloc[-1], axis=1)
+    last_inc  = proj_inc.apply(lambda r: r.dropna().iloc[-1], axis=1)
+
+ 
+    sum_paid = last_paid.sum()
+    sum_inc  = last_inc.sum()
+
+    df_two = pd.DataFrame(
+        {
+            "Paid":     last_paid.round(2),
+            "Incurred": last_inc.round(2),
+        }
+    )
+
+    return {
+        "triangle_paid"     : payload.paid_data_det,
+        "triangle_incurred" : payload.incurred_data_det,
+        "vec_paid"          : vec_paid,
+        "vec_incurred"      : vec_inc,
+        "comparison"        : df_two.to_dict(orient="records"),   # ⬅️ tylko 2 kolumny
     }
