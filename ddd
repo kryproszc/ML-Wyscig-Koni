@@ -1,4 +1,11 @@
-<p className="text-xl text-gray-400 text-center max-w-2xl">
-  <strong>Rozpocznij pracę z symulacjami stochastycznymi rezerw ubezpieczeniowych.</strong>{' '}
-  <em>Wprowadź dane i wyciągaj wnioski z przeprowadzonych analiz.</em>
-</p>
+Zakres Projektu/Inicjatywy:
+
+Projekt obejmuje wdrożenie i konfigurację aplikacji wspierających procesy analityczne, raportowe i kontrolne w zakresie oceny modeli oraz rezerw techniczno-ubezpieczeniowych. Zakres działań obejmuje:
+
+Wdrożenie aplikacji dla Zespołu Oceny Modeli, służącej do oceny rezerw techniczno-ubezpieczeniowych, w tym analiza potrzeb użytkowników, projekt techniczny, testy akceptacyjne i uruchomienie środowiska produkcyjnego.
+
+Wdrożenie aplikacji raportującej dla Departamentu DIU, wspierającej automatyzację procesów sprawozdawczych – wraz z zakupem niezbędnych komponentów infrastruktury, integracją z istniejącymi systemami oraz opracowaniem procedur obsługi.
+
+Wdrożenie aplikacji do oceny modeli wewnętrznych, umożliwiającej dokumentowanie, walidację i ocenę modeli ryzyka – w tym analiza funkcjonalna, projektowanie interfejsów oraz szkolenie użytkowników końcowych.
+
+Wdrożenie aplikacji do oceny i monitorowania modeli wewnętrznych, zapewniającej ciągłość monitoringu jakości modeli, wraz z opracowaniem/aktualizacją regulaminów oraz procedur monitorujących.
