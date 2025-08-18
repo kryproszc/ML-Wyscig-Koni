@@ -1,11 +1,19 @@
-"scripts": {
-  "build": "next build",
-  "check": "biome check .",
-  "check:unsafe": "biome check --write --unsafe .",
-  "check:write": "biome check --write .",
-  "dev": "next dev -H 0.0.0.0 -p 3000",
-  "preview": "next build && next start -H 0.0.0.0 -p 3000",
-  "start": "next start -H 0.0.0.0 -p 3000",
-  "typecheck": "tsc --noEmit",
-  "openapi-ts": "openapi-ts"
+npm i @t3-oss/env-nextjs zod
+npm i -D typescript @types/node
+
+
+
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "target": "ES2022",
+    "jsx": "preserve",
+    "allowJs": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "types": ["node"]
+  }
 }
