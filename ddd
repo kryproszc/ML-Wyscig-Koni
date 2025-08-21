@@ -1,11 +1,1 @@
-"scripts": {
-  "build": "next build",
-  "dev": "next dev -H 0.0.0.0 -p 3000 --turbo",
-  "preview": "next build && next start -H 0.0.0.0 -p 3000",
-  "start": "next start -H 0.0.0.0 -p 3000",
-  "typecheck": "tsc --noEmit",
-  "check": "biome check .",
-  "check:write": "biome check --write .",
-  "check:unsafe": "biome check --write --unsafe .",
-  "openapi-ts": "openapi-ts"
-}
+koncentrowanie się na latach od 2010 r. wzwyż w celu kalibracji średniej dotkliwości oraz odchylenia standardowego. Zakład tłumaczy tę zmianę, faktem iż en okres pokazuje bardziej spójny wzrost średnich szkód majątkowych. Wybrany przedział zachowuje zbiór danych obejmujący 87% ekspozycji oraz 84% liczby szkód. Wysoka wartość współczynnika R² (ok. 87%) potwierdza wyraźny trend w danych, Dodatkowo zmieniono typ trendu w estymacji średniej z liniowego na wykładniczy, co zapewnia lepsze dopasowanie do danych oraz potwierdza wysoką wartość współczynnika R² (ok. 87%). W wyznaczeniu odchylenia standardowo zmieniono uwzględniono trend wykładniczy, wartość wyznaczono na danych z tego samego przedziału czasowego.
