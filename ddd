@@ -1,1 +1,6 @@
-Wprowadzono zmianę parametryzacji – średnia liczona jest wyłącznie na podstawie danych z lat 2018–2023 (wykluczono 2003–2017), natomiast odchylenie standardowe obliczane jest bez wykluczeń, na pełnym zbiorze danych. Uzasadnieniem było to, że najnowsze lata wskazują na niższą częstość dużych szkód dzięki zaostrzonym zasadom underwritingu oraz wdrożeniu sensorów, a pełna historia pozostaje potrzebna do właściwego ujęcia zmienności.
+zamiast Poissona zastosowano rozkład negatywno-dwumianowy, co uzasadnione jest wyższą dyspersją danych (ok. 4,1) oraz lepszym dopasowaniem do obserwowanej zmienności (
+𝑅
+2
+R
+2
+ 39–45% w zależności od trendu).
