@@ -1,1 +1,7 @@
-W roku bieżącym zmieniono rok bazowy dla indeksacji progu LC z najnowszego AY na najstarszy dostępny rok 2003, co spowodowało wzrost progu LC z ok. 0,35 mln PLN do 0,58 mln PLN i w efekcie zmniejszenie liczby szkód powyżej progu z 617 do 428. Ponadto zmieniono rozkład z Burr (truncated) na GPD B (shifted), który zapewnił najlepsze dopasowanie w testach statystycznych (najwyższe p-value w AD, drugie najwyższe w KS) oraz satysfakcjonujące dopasowanie w zakresie pierwszych dwóch momentów. Zmiana została uzasadniona potrzebą lepszego odzwierciedlenia ryzyka w ogonie rozkładu – mimo mniejszej liczby szkód baza pozostaje wystarczająco duża, aby zapewnić stabilność wyników.
+„W związku ze zmianą roku bazowego i istotnym obniżeniem progu LC, proszę o przygotowanie analizy porównawczej wyników dopasowania rozkładu w dwóch wariantach:
+
+z progiem wyznaczonym na bazie nowego roku bazowego (2023),
+
+z progiem wyznaczonym zgodnie z dotychczasową metodologią (bez zmiany roku bazowego).
+
+Analiza powinna obejmować porównanie liczby szkód włączonych do analizy, wartości estymowanych kwantyli (95%, 99%, 99,5%) oraz dopasowania ogona (np. poprzez testy statystyczne i wizualizacje QQ-plot).
