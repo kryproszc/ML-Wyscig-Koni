@@ -1,22 +1,19 @@
+/**
+ * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially useful
+ * for Docker builds.
+ */
+import "./src/env.js";
+
 /** @type {import("next").NextConfig} */
 const config = {
-  // Dla wdrożenia w sieci lokalnej
-  output: 'standalone', // opcjonalnie
+  // Umożliwia dostęp z innych komputerów w sieci
   experimental: {
-    outputFileTracingExcludes: {
-      '*': [
-        'node_modules/@swc/core-linux-x64-gnu',
-        'node_modules/@swc/core-linux-x64-musl',
-      ],
-    },
+    serverComponentsExternalPackages: [],
+  },
+  // Konfiguracja dla wdrożenia w sieci lokalnej
+  async rewrites() {
+    return [];
   },
 };
 
 export default config;
-
-
-
-
-pnpm start -- -H 0.0.0.0 -p 3000
-
-npx next start -H 0.0.0.0 -p 3000
