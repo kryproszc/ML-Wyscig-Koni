@@ -1,1 +1,22 @@
-W raporcie przy obliczaniu średniej częstotliwości szkód wspomniane są installed sensors. Czy mogą Państwo doprecyzować, jakie konkretnie sensory są tu brane pod uwagę i w jaki sposób wpływają na obniżenie częstotliwości szkód?
+/** @type {import("next").NextConfig} */
+const config = {
+  // Dla wdrożenia w sieci lokalnej
+  output: 'standalone', // opcjonalnie
+  experimental: {
+    outputFileTracingExcludes: {
+      '*': [
+        'node_modules/@swc/core-linux-x64-gnu',
+        'node_modules/@swc/core-linux-x64-musl',
+      ],
+    },
+  },
+};
+
+export default config;
+
+
+
+
+pnpm start -- -H 0.0.0.0 -p 3000
+
+npx next start -H 0.0.0.0 -p 3000
