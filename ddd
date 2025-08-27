@@ -1,1 +1,8 @@
-Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled False
+Get-NetFirewallRule | where DisplayName -like "*3000*" | Remove-NetFirewallRule
+Get-NetFirewallRule | where DisplayName -like "*Node.js*" | Remove-NetFirewallRule
+
+
+New-NetFirewallRule -DisplayName "Allow Node.js inbound" `
+  -Direction Inbound `
+  -Program "C:\Program Files\nodejs\node.exe" `
+  -Action Allow -Profile Domain,Private,Public
