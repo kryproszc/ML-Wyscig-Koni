@@ -1,3 +1,1 @@
-New-NetFirewallRule -DisplayName "Allow Node.js exact" `
-  -Direction Inbound -Program "C:\Program Files\nodejs\node.exe" `
-  -Action Allow -Profile Domain,Private,Public
+Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled False
