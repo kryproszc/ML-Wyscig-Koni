@@ -1,6 +1,3 @@
-# sprawdź czy jest już reguła
-Get-NetFirewallRule | where DisplayName -like "*3000*"
+python -m http.server 3000
 
-# dodaj regułę dla portu 3000
-New-NetFirewallRule -DisplayName "NextJS 3000" -Direction Inbound `
-  -Protocol TCP -LocalPort 3000 -Action Allow -Profile Domain,Private,Public
+Test-NetConnection 172.25.210.87 -Port 3000
