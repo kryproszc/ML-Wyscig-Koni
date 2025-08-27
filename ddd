@@ -1,11 +1,3 @@
-"scripts": {
-  "dev": "next dev -H 0.0.0.0 -p 3000",
-  "start": "next start -H 0.0.0.0 -p 3000",
-  "build": "next build",
-  "preview": "next build && next start -H 0.0.0.0 -p 3000",
-  "typecheck": "tsc --noEmit",
-  "openapi-ts": "openapi-ts",
-  "check": "biome check .",
-  "check:write": "biome check --write .",
-  "check:unsafe": "biome check --write --unsafe ."
-}
+Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force
+npm run build
+npm run start
