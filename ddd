@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    /* Base options */
     "target": "ES2022",
     "lib": ["dom", "dom.iterable", "ES2022"],
     "jsx": "preserve",
@@ -17,13 +16,12 @@
     "noEmit": true,
     "incremental": true,
 
-    /* Path Aliases */
-    "baseUrl": "src",
+    /* Alias @ działa dla src/* i dla plików w root */
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["*"]
+      "@/*": ["src/*", "*"]
     },
 
-    /* Next.js plugin */
     "plugins": [{ "name": "next" }]
   },
   "include": [
