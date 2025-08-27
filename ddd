@@ -1,16 +1,1 @@
-$node = (where.exe node)
-New-NetFirewallRule -DisplayName "Allow Node.js inbound" `
-  -Direction Inbound -Program $node -Action Allow -Profile Domain,Private,Public
-
-
-Invoke-WebRequest http://localhost:3000 -UseBasicParsing
-Invoke-WebRequest http://172.25.210.87:3000 -UseBasicParsing
-
-
-netstat -ano | findstr :3000
-
-
-2
- kom
-
-Test-NetConnection 172.25.210.87 -Port 3000
+Get-Process -Id 23316 | Format-List Path,Id,ProcessName
