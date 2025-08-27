@@ -1,2 +1,3 @@
-New-NetFirewallRule -Name Allow_3000_TCP -DisplayName "Allow 3000/TCP" `
-  -Direction Inbound -Protocol TCP -LocalPort 3000 -Action Allow -Profile Any
+$node = (Get-Command node).Source
+New-NetFirewallRule -Name Allow_Node_Inbound -DisplayName "Allow node.exe inbound" `
+  -Direction Inbound -Action Allow -Program $node -Profile Any
