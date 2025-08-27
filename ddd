@@ -1,1 +1,3 @@
 Get-Process -Id 23316 | Format-List Path,Id,ProcessName
+
+netstat -ano | findstr :3000
