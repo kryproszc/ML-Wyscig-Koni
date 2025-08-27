@@ -1,1 +1,2 @@
-Test-NetConnection 172.25.210.87 -Port 3000
+New-NetFirewallRule -Name Allow_3000_TCP -DisplayName "Allow 3000/TCP" `
+  -Direction Inbound -Protocol TCP -LocalPort 3000 -Action Allow -Profile Any
