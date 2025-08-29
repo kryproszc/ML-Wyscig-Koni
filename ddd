@@ -1,7 +1,1 @@
-export type ClientOptions = {
-  baseUrl: string;
-};
-
-export const defaultClientOptions: ClientOptions = {
-  baseUrl: API_URL,
-};
+Select-String -Path "src/**/*.ts*" -Pattern "fraza"
