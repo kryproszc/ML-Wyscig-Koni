@@ -1,107 +1,51 @@
-@app.post("/calc/cl")
-async def calc_cl(
-    data: List[List[Union[str, int, float, None]]],
-    selected: List[List[int]],
-):
-    print("selected")
-    print(selected)
-    df = pd.DataFrame(data).iloc[1:, 1:]
-    df = df.apply(pd.to_numeric, errors="coerce")
-    tri = TriangleCalculator.full_ci_calculation(df)[0]
-    print("tri")
-    print(pd.DataFrame(tri))
-    safe_tri = tri.replace([np.inf, -np.inf], np.nan).astype(object).where(pd.notnull(tri), None)
-
-    matrix = [[tri.columns.name or "AY"] + list(tri.columns)]
-    for idx in tri.index:
-        values = list(safe_tri.loc[idx])
-        while values and values[-1] is None:
-            values.pop()
-        row = [idx] + values
-        matrix.append(row)
-    print("matrix")
-    print(pd.DataFrame(matrix))
-    return {"data": matrix}
-
-
-@app.post("/calc/full")
-async def calc_full(payload: MatrixRequest):
-    import time
-    import uuid
-    import pandas as pd
-    import numpy as np
-    
-    print("df_triangle_raw")
-
-    start1 = time.time()
-    start2 = time.time()
-
-    try:
-        try:
-            user_session = SESSIONS.get_session(payload.user_id)
-
-            df_triangle_raw = (
-                pd.DataFrame(payload.triangle_raw)
-                .iloc[1:, 1:]
-                .apply(pd.to_numeric, errors="coerce")
-            )
-            df_cl_weights_raw = pd.DataFrame(payload.paid_weights).astype(float)
-            wagi_z_trojkata = np.array(df_cl_weights_raw.values, dtype=float)
-
-            wagi_z_reszt = pd.DataFrame(payload.cl_weights).astype(float)
-            df_np = np.array(df_triangle_raw.values, dtype=float)
-            df_bool = wagi_z_reszt.copy()
-            mask_reszty = df_bool.to_numpy(dtype=object)
-
-            print(mask_reszty)
-            combined_mask = (~np.isnan(df_np))
-            mask_np = ~np.isnan(df_np)
-            
-            tri0_np = TriangleCalculator.to_incr_np(df_np)
-            ctri0_np = TriangleCalculator.to_cum_np(tri0_np)
-            a2a_np = TriangleCalculator.get_a2a_factors_np(ctri0_np, mask_np)
-            ctri_np = TriangleCalculator.fit_triangle_from_latest_np(df_np, mask_np)
-            tri_np = TriangleCalculator.to_incr_np(ctri_np)
-            r_adj_np, phi_np = TriangleCalculator.full_ci_calculation_np(df_np,mask_np, mask_reszty)
-            residuals = r_adj_np[~np.isnan(r_adj_np)].flatten()
-
-            sim_results_np = TriangleCalculator.run_simulations_numpy_nb(
-                tri_np, residuals, wagi_z_trojkata, phi_np, a2a_np, nbr_samples=payload.nbr_samples
-            )
-
-            latest = np.sum(TriangleCalculator.get_latest(df_triangle_raw))
-            sim_diff_np = sim_results_np - latest
-
-            print(f"Czas wykonania symulacje i ibnr: {time.time() - start2:.2f} sekund")
-
-            request_id = str(uuid.uuid4())
-
-            user_session.save_simulation(
-                request_id=request_id,
-                sim=sim_results_np,
-                diff=sim_diff_np,
-                latest=latest
-            )
-
-            counts, bins = np.histogram(sim_results_np, bins=50)
-
-            print(f"Czas wykonania calosc: {time.time() - start2:.2f} sekund")
-
-            return {
-                "message": "OK",
-                "request_id": request_id,
-                "triangle_shape": df_triangle_raw.shape,
-                "histogram": {
-                    "bins": bins.tolist(),
-                    "counts": counts.tolist()
-                }
-            }
-            
-        except Exception as e:
-            print(f"Error in calc_full: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Błąd podczas obliczeń: {str(e)}")
-
-    except Exception as e:
-        print(f"Critical error in calc_full: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Krytyczny błąd serwera: {str(e)}")
-
+{
+  "compilerOptions": {
+    /* Base Options: */
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "target": "es2022",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    /* Strictness */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "checkJs": true,
+    /* Bundled projects */
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "ES2022"
+    ],
+    "noEmit": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "preserve",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "incremental": true,
+    /* Path Aliases */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.cjs",
+    "**/*.js",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
