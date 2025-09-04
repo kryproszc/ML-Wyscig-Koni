@@ -1,51 +1,307 @@
-{
-  "compilerOptions": {
-    /* Base Options: */
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "target": "es2022",
-    "allowJs": true,
-    "resolveJsonModule": true,
-    "moduleDetection": "force",
-    "isolatedModules": true,
-    "verbatimModuleSyntax": true,
-    /* Strictness */
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "checkJs": true,
-    /* Bundled projects */
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "ES2022"
-    ],
-    "noEmit": true,
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "jsx": "preserve",
-    "plugins": [
-      {
-        "name": "next"
+import { useCallback } from 'react';
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+
+export interface UseDataSubmissionParams {
+  buildFormData: (key: string | null) => any | null;
+  keyToLabelMap: Record<string, string>;
+  getTriangleData: () => any[][];
+  addComparisonTable: (entry: { data: any[]; labelA: string; labelB: string }) => void;
+  apiEndpoint: string; // np. 'paid' lub 'incurred'
+  rowLabels: string[]; // etykiety wierszy (lata) do mapowania kolumny "Wiersz"
+}
+
+/* ===================== helpers ===================== */
+
+// 1) "Projection A..." -> "<labelA>...", "Projection B..." -> "<labelB>..."
+function applyProjectionLabelsToKey(key: string, labelA?: string, labelB?: string) {
+  if (labelA) key = key.replace(/^Projection A(\b.*)?$/i, (_m, r = '') => `${labelA}${r}`);
+  if (labelB) key = key.replace(/^Projection B(\b.*)?$/i, (_m, r = '') => `${labelB}${r}`);
+  return key;
+}
+
+// 2) "Selected …" / "Initial Selection …" / PL -> "<selectedLabel>…"
+function applySelectedLabelToKey(key: string, selectedLabel?: string) {
+  if (!selectedLabel) return key;
+  return key.replace(
+    /^(?:Selected(?:\s+Value)?|Initial(?:\s+Selection)?|Wybrana(?:\s+wartość)?|Wybór(?:\s+początkowy)?)\b(.*)?$/i,
+    (_m, r = '') => `${selectedLabel}${r}`
+  );
+}
+
+// 3) kandydat na „Ultimate” (bazowa wartość, nie IBNR/%, nie Różnica)
+function isUltimateCandidate(name: string) {
+  if (name === 'Wiersz') return false;
+  if (/IBNR/i.test(name)) return false;
+  if (/%/.test(name)) return false;
+  if (/^Różnica/i.test(name)) return false;
+  return true;
+}
+
+// 4) wybór etykiety dla „Selected …” tak, aby ZAWSZE mieć parę A/B
+function decideSelectedLabel(originalKeys: string[], labelA: string, labelB: string): string {
+  const after = originalKeys.map((k) => applyProjectionLabelsToKey(k, labelA, labelB));
+  const candidates = after.filter(isUltimateCandidate);
+  const hasA = candidates.some((k) => k.includes(labelA));
+  const hasB = candidates.some((k) => k.includes(labelB));
+  if (!hasA && hasB) return labelA;
+  if (!hasB && hasA) return labelB;
+  return labelA; // fallback
+}
+
+// 5) przenieś "IBNR" na początek nazwy, jeśli występuje
+function moveIbnrToFront(name: string) {
+  if (!/IBNR/i.test(name)) return name;
+  if (/^IBNR\b/i.test(name)) return name;
+  const without = name.replace(/\s*IBNR\s*/i, '').replace(/\s+/g, ' ').trim();
+  return `IBNR ${without}`;
+}
+
+// 6) „Ultimate ” dla Różnica / Różnica %
+function ultimateForDifferences(name: string) {
+  return name === 'Różnica' || name === 'Różnica %' ? `Ultimate ${name}` : name;
+}
+
+// 7) standaryzacja "Wiersz": -, suma, SUMA -> "Suma"
+function normalizeSumCell(value: unknown) {
+  const v = String(value ?? '').trim();
+  if (v === '-' || v.toLowerCase() === 'suma') return 'Suma';
+  return value;
+}
+
+// 8) zamiana prefiksu IBNR na docelowy (np. "IBNR + RBNP")
+function applyIbnrPrefix(name: string, ibnrPrefix: string) {
+  return name.replace(/^IBNR\b/i, ibnrPrefix);
+}
+
+/* ===================== remap ===================== */
+
+function remapComparisonRowKeys(
+  row: Record<string, any>,
+  opts: {
+    labelA: string;
+    labelB: string;
+    selectedLabel: string;
+    allKeysOrder: string[];
+    apiEndpoint: string;
+    rowLabels: string[];
+    rowIndex: number;
+  }
+) {
+  const ibnrPrefix = opts.apiEndpoint === 'incurred' ? 'IBNR + RBNP' : 'IBNR';
+
+  console.log('🔧 Remapping row:', {
+    originalRow: row,
+    labelA: opts.labelA,
+    labelB: opts.labelB,
+    selectedLabel: opts.selectedLabel,
+    ibnrPrefix,
+    rowIndex: opts.rowIndex
+  });
+
+  // A) normalizacja nazw
+  const renamed: Record<string, any> = {};
+  for (const k of Object.keys(row)) {
+    let nk = applyProjectionLabelsToKey(k, opts.labelA, opts.labelB);
+    // Usunięto applySelectedLabelToKey - zachowujemy różnice między Selected Value i Initial Selection
+    nk = moveIbnrToFront(nk);
+    
+    console.log(`🔧   "${k}" → "${nk}"`);
+    
+    renamed[nk] = row[k];
+  }
+
+  // porządek po transformacjach
+  const keysInOrder = opts.allKeysOrder
+    .map((k) => {
+      let nk = applyProjectionLabelsToKey(k, opts.labelA, opts.labelB);
+      // Usunięto applySelectedLabelToKey - zachowujemy różnice między Selected Value i Initial Selection
+      nk = moveIbnrToFront(nk);
+      return nk;
+    })
+    .filter((k) => k in renamed);
+
+  const out: Record<string, any> = {};
+
+  // 1) Wiersz - mapowanie z indeksów na właściwe etykiety (lata)
+  if ('Wiersz' in renamed) {
+    const originalValue = renamed['Wiersz'];
+    if (originalValue === 'Suma' || String(originalValue).toLowerCase() === 'suma') {
+      out['Wiersz'] = 'Suma';
+    } else {
+      // Mapowanie z indeksu na rok z rowLabels
+      const numericIndex = Number(originalValue);
+      if (!isNaN(numericIndex) && opts.rowLabels && opts.rowLabels[numericIndex]) {
+        out['Wiersz'] = opts.rowLabels[numericIndex];
+      } else {
+        // Fallback - pozostaw oryginalne wartości
+        out['Wiersz'] = normalizeSumCell(originalValue);
       }
-    ],
-    "incremental": true,
-    /* Path Aliases */
-    "baseUrl": ".",
-    "paths": {
-      "@/*": [
-        "./src/*"
-      ]
     }
-  },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    "**/*.cjs",
-    "**/*.js",
-    ".next/types/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+  }
+
+  // kandydaci
+  const ultimateCandidates: string[] = keysInOrder.filter(isUltimateCandidate);
+  const ibnrCandidates: string[] = keysInOrder.filter((k) => /^IBNR\b/i.test(k));
+
+  console.log('🔧 Ultimate candidates:', ultimateCandidates);
+  console.log('🔧 IBNR candidates:', ibnrCandidates);
+
+  // 2) ZAWSZE dwie kolumny Ultimate: <labelA>, <labelB>
+  const u0 = ultimateCandidates.find(k => k.includes('Selected Value'));
+  const u1 = ultimateCandidates.find(k => k.includes('Initial Selection'));
+  
+  // Sprawdź, czy labelA odpowiada Selected Value czy Initial Selection
+  const labelAIsSelectedValue = opts.labelA.includes('Selected') || opts.labelA.includes('Wybrana');
+  const labelBIsSelectedValue = opts.labelB.includes('Selected') || opts.labelB.includes('Wybrana');
+  
+  // Przypisz dane zgodnie z faktycznymi etykietami
+  if (labelAIsSelectedValue && u0) {
+    out[`Ultimate ${opts.labelA}`] = renamed[u0];
+  } else if (!labelAIsSelectedValue && u1) {
+    out[`Ultimate ${opts.labelA}`] = renamed[u1];
+  }
+  
+  if (labelBIsSelectedValue && u0) {
+    out[`Ultimate ${opts.labelB}`] = renamed[u0];
+  } else if (!labelBIsSelectedValue && u1) {
+    out[`Ultimate ${opts.labelB}`] = renamed[u1];
+  }
+
+  // 3) ZAWSZE dwie kolumny IBNR…: <labelA>, <labelB>
+  const i0 = ibnrCandidates.find(k => k.includes('Selected Value'));
+  const i1 = ibnrCandidates.find(k => k.includes('Initial Selection'));
+  
+  // Przypisz dane IBNR zgodnie z faktycznymi etykietami
+  if (labelAIsSelectedValue && i0) {
+    out[`${ibnrPrefix} ${opts.labelA}`] = renamed[i0];
+  } else if (!labelAIsSelectedValue && i1) {
+    out[`${ibnrPrefix} ${opts.labelA}`] = renamed[i1];
+  }
+  
+  if (labelBIsSelectedValue && i0) {
+    out[`${ibnrPrefix} ${opts.labelB}`] = renamed[i0];
+  } else if (!labelBIsSelectedValue && i1) {
+    out[`${ibnrPrefix} ${opts.labelB}`] = renamed[i1];
+  }
+
+  // 4) Reszta – „Ultimate ” dla różnic + podmiana prefiksu IBNR w nazwach różnic
+  const skip = new Set<string>([
+    'Wiersz',
+    ...(typeof u0 === 'string' ? [u0] : []),
+    ...(typeof u1 === 'string' ? [u1] : []),
+    ...(typeof i0 === 'string' ? [i0] : []),
+    ...(typeof i1 === 'string' ? [i1] : []),
+  ]);
+
+  for (const k of keysInOrder) {
+    if (skip.has(k)) continue;
+    const withUltimate = ultimateForDifferences(k);
+    const finalName = applyIbnrPrefix(withUltimate, ibnrPrefix); // <— tu podmieniamy też w „IBNR Różnica…”
+    out[finalName] = renamed[k];
+  }
+
+  return out;
+}
+
+/* ===================== hook ===================== */
+
+export function useDataSubmission({
+  buildFormData,
+  keyToLabelMap,
+  getTriangleData,
+  addComparisonTable,
+  apiEndpoint,
+  rowLabels,
+}: UseDataSubmissionParams) {
+  const handleSend = useCallback(
+    async (
+      selectedA: string | null,
+      selectedB: string | null,
+      onShowModal: () => void
+    ) => {
+      if (!selectedA || !selectedB) {
+        onShowModal();
+        return;
+      }
+
+      const triangle = getTriangleData();
+      const coeff_sets = [selectedA, selectedB].map(buildFormData).filter(Boolean);
+
+      const payload = {
+        [`${apiEndpoint}_data_det`]: triangle,
+        coeff_sets,
+      };
+
+      console.log('📤 Payload sent to backend:', payload);
+      console.log('📤 Triangle data:', triangle);
+      console.log('📤 Coefficient sets:', coeff_sets);
+
+      try {
+        const res = await fetch(`${API}/calc/${apiEndpoint}/save_vector`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error('❌ Server error:', errorText);
+          throw new Error(`❌ Błąd serwera: ${res.status}`);
+        }
+
+        const json = await res.json();
+        console.log('✅ Odpowiedź:', json);
+
+        const labelA = keyToLabelMap[selectedA] ?? 'Projection A';
+        const labelB = keyToLabelMap[selectedB] ?? 'Projection B';
+
+        if (json.comparison && Array.isArray(json.comparison) && json.comparison.length > 0) {
+          console.log('🔍 Backend comparison data:', json.comparison);
+          console.log('🔍 First row keys:', Object.keys(json.comparison[0]));
+          console.log('🔍 First row data:', json.comparison[0]);
+          console.log('🔍 Row labels to use:', rowLabels);
+          const originalKeys: string[] = Object.keys(json.comparison[0] as Record<string, any>);
+          const selectedLabel = decideSelectedLabel(originalKeys, labelA, labelB);
+
+          console.log('🔍 Original keys from backend:', originalKeys);
+          console.log('🔍 Selected label:', selectedLabel);
+          console.log('🔍 labelA:', labelA, 'labelB:', labelB);
+
+          const mapped = (json.comparison as any[]).map((row, rowIndex) => {
+            const result = remapComparisonRowKeys(row, {
+              labelA,
+              labelB,
+              selectedLabel,
+              allKeysOrder: originalKeys,
+              apiEndpoint, // przekazujemy, by ustalić prefiks IBNR
+              rowLabels, // etykiety wierszy
+              rowIndex, // indeks wiersza
+            });
+            
+            if (rowIndex === 0) {
+              console.log('🔍 First row mapping:', {
+                original: row,
+                mapped: result
+              });
+            }
+            
+            return result;
+          });
+
+          console.log('🔍 Final mapped data:', mapped);
+          console.log('🔍 Final mapped columns:', mapped.length > 0 && mapped[0] ? Object.keys(mapped[0]) : []);
+
+          addComparisonTable({ data: mapped, labelA, labelB });
+        } else {
+          console.warn('❌ Brak danych porównania w odpowiedzi');
+        }
+      } catch (err) {
+        console.error('❌ Błąd wysyłki:', err);
+      }
+    },
+    [buildFormData, keyToLabelMap, getTriangleData, addComparisonTable, apiEndpoint, rowLabels]
+  );
+
+  return { handleSend };
 }
