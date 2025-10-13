@@ -1,1 +1,7 @@
-We wanted to first ask what tools are available at EIOPA and then look into what information we would need from the insurer. If my supervisor writes a request to you asking for my addition to the ENW4 Extranet, will that be sufficient? As I understand it, this is a completely different application than the one being developed within the QRT group? I know the R language. I understand that it would be necessary to familiarize ourselves with the specifications of this application and then prepare the data of a potential insurer in such a way that the application recognizes it as an insurer that already has an internal model. Is there a methodological description available explaining how insurers are compared?
+First, we wanted to ask what tools are available at EIOPA, and then look into what information we would need from the insurer. If my supervisor writes to you requesting my addition to the ENW4 Extranet, would that be sufficient? As I understand it, this is a completely different application from the one being developed within the QRT group? I know the R language.
+I understand that it would be necessary to familiarize myself with the specification of this application and how the indicators are calculated. Then, prepare the data of a potential insurer according to the specification. Once the indicators are prepared, I have two options:
+
+Add the new insurer to the Excel file and compare it with other insurers already included in the file.
+
+Import the data into the R application and perform the analysis in R.
+Is there a methodological description available explaining how insurers are compared within the R application?
