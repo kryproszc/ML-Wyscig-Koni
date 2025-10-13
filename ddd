@@ -1,1 +1,5 @@
-In the file I have indicators for all insurers in the European Union using the internal model
+To summarize, we will receive access to all indicators calculated based on the S.26 template, which are described in the documentation.
+To assess how a potential insurance company that would like to apply for internal model approval performs compared to other insurers in the European Union, we would need to request data from this company corresponding to the S.26 template, calculate the indicators in line with the documentation, and then compare them with the Excel file containing the indicators provided by EIOPA.
+We can also load this dataset into Excel or use the Shiny application to perform additional analyses.
+
+It seems to us that this is the fastest and most efficient way to compare a potential insurance company that could apply for internal model approval.
