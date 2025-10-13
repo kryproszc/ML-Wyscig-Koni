@@ -1,13 +1,1 @@
-Inquiry Regarding Access to Public SCFR Data
-
-Dear Sir or Madam,
-
-I would like to ask whether it is possible to obtain public SCFR data related to non-life insurance companies that use an internal model.
-We are interested in comparing the results of Polish insurers with other entities that also apply such a model.
-
-Alternatively, could you please advise whether the current version of the application allows for comparing a specific insurer with other insurance companies using an internal model?
-We are particularly interested in understanding how our company performs in comparison with other EU insurers that have an internal model.
-
-I would be very grateful for any information on this matter.
-
-I would be very grateful for any information on this matter.
+We wanted to first ask what tools are available at EIOPA and then look into what information we would need from the insurer. If my supervisor writes a request to you asking for my addition to the ENW4 Extranet, will that be sufficient? As I understand it, this is a completely different application than the one being developed within the QRT group? I know the R language. I understand that it would be necessary to familiarize ourselves with the specifications of this application and then prepare the data of a potential insurer in such a way that the application recognizes it as an insurer that already has an internal model. Is there a methodological description available explaining how insurers are compared?
