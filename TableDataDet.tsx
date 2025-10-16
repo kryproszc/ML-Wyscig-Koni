@@ -1,195 +1,100 @@
-'use client';
-
-import { useMemo } from 'react';
-import { useTrainDevideStoreDet } from '@/stores/trainDevideStoreDeterministyczny';
-
-interface Props {
-  data: (string | number)[][];
-  weights?: number[][];
-  selectedCells?: [number, number][];
-  minMaxCells?: [number, number][];
-  minCells?: [number, number][];
-  maxCells?: [number, number][];
-  onClick?: (i: number, j: number) => void;
-  onToggleRow?: (rowIndex: number) => void;
-  showRowToggle?: boolean;
-}
-
-export function TableDataDet({ 
-  data, 
-  weights, 
-  selectedCells = [], 
-  minMaxCells = [], 
-  minCells = [], 
-  maxCells = [], 
-  onClick,
-  onToggleRow,
-  showRowToggle = false 
-}: Props) {
-  const toggleWeight = useTrainDevideStoreDet((s) => s.toggleWeightCellDet);
-  const decimalPlaces = useTrainDevideStoreDet((s) => s.decimalPlaces);
-
-  // Funkcja formatowania liczb
-  const formatNumber = (cell: string | number): string => {
-    if (typeof cell === 'number') {
-      return cell.toFixed(decimalPlaces);
-    }
-    if (typeof cell === 'string' && !isNaN(Number(cell)) && cell !== '') {
-      return Number(cell).toFixed(decimalPlaces);
-    }
-    return String(cell);
-  };
-
-  // Debug - sprawdźmy co otrzymujemy
-  console.log('🎯 TableDataDet received:', { 
-    minCells: minCells.length, 
-    maxCells: maxCells.length,
-    minCellsData: minCells,
-    maxCellsData: maxCells,
-    weightsLength: weights?.length || 0,
-    dataLength: data?.length || 0
-  });
-
-  const handleCellClick = (i: number, j: number) => {
-    if (i === 0 || j === 0) return; // Nie pozwalamy kliknąć w nagłówki
-    
-    // Sprawdzamy czy komórka ma liczbową wartość (nie pustą)
-    const cell = data[i]?.[j];
-    if (cell === null || cell === undefined || cell === '') return;
-    
-    console.log(`Kliknięto komórkę [${i}, ${j}]`);
-    toggleWeight(i - 1, j - 1); // Odejmujemy 1 bo nagłówki dodają offset
-    
-    if (onClick) {
-      onClick(i, j);
-    }
-  };
-
-  const handleRowToggle = (rowIndex: number) => {
-    if (rowIndex === 0 || !onToggleRow) return; // Nie pozwalamy na nagłówek
-    onToggleRow(rowIndex - 1); // Odejmujemy 1 bo nagłówki dodają offset
-  };
-
-  // Memoizujemy stany zaznaczenia wierszy aby React wiedział o zmianach
-  const rowSelectionStates = useMemo(() => {
-    if (!weights || !data) return new Map<number, boolean>();
-    
-    const states = new Map<number, boolean>();
-    
-    for (let i = 1; i < data.length; i++) { // Zaczynamy od 1 bo 0 to nagłówek
-      const weightRow = weights[i - 1];
-      const dataRow = data[i];
-      
-      if (!weightRow || !dataRow) {
-        states.set(i, false);
-        continue;
-      }
-      
-      let hasAnyData = false;
-      let allSelected = true;
-      
-      for (let j = 1; j < dataRow.length; j++) { // Zaczynamy od 1 bo 0 to nagłówek
-        const cell = dataRow[j];
-        const hasData = cell !== null && cell !== undefined && cell !== '' && typeof cell !== 'undefined';
-        
-        if (hasData) {
-          hasAnyData = true;
-          if (weightRow[j - 1] !== 1) { // j-1 bo weights nie ma kolumny nagłówka
-            allSelected = false;
-            break;
-          }
-        }
-      }
-      
-      states.set(i, hasAnyData && allSelected);
-    }
-    
-    return states;
-  }, [weights, data]);
-
-  // Sprawdzamy czy cały wiersz jest zaznaczony - teraz używa memoizowanego stanu
-  const isRowSelected = (rowIndex: number): boolean => {
-    if (rowIndex === 0) return false;
-    return rowSelectionStates.get(rowIndex) || false;
-  };
-
-  return (
-    <div className="overflow-x-auto bg-gray-900 rounded-lg">
-      <table className="min-w-full text-sm border-collapse">
-        <tbody>
-          {data.map((row, i) => (
-            <tr key={i}>
-              {/* Kolumna z checkbox dla wierszy (tylko jeśli showRowToggle jest true) */}
-              {showRowToggle && (
-                <td className="p-2 text-center bg-gray-700 border border-white/20">
-                  {i === 0 ? (
-                    <span className="text-white font-semibold text-xs">Cały wiersz</span>
-                  ) : (
-                    <input
-                      type="checkbox"
-                      checked={isRowSelected(i)}
-                      onChange={() => handleRowToggle(i)}
-                      className="w-4 h-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
-                    />
-                  )}
-                </td>
-              )}
-              
-              {row.map((cell, j) => {
-                const isHeaderRow = i === 0;
-                const isHeaderCol = j === 0;
-                const isHeader = isHeaderRow || isHeaderCol;
-                
-                // Sprawdzamy czy komórka ma dane liczbowe (nie pusta)
-                const hasData = !isHeader && cell !== null && cell !== undefined && cell !== '';
-                
-                // Sprawdzamy czy komórka jest minimum lub maksimum
-                const isMin = minCells?.some(([minI, minJ]) => minI === i && minJ === j);
-                const isMax = maxCells?.some(([maxI, maxJ]) => maxI === i && maxJ === j);
-
-                // Debug tylko dla min/max
-                if (isMin || isMax) {
-                  console.log(`🔍 Min/Max komórka [${i}, ${j}]:`, { isMin, isMax, cell, hasData });
-                }
-
-                const cellStyle = isHeader
-                  ? 'bg-gray-700 text-white font-semibold'
-                  : hasData
-                  ? weights?.[i - 1]?.[j - 1] === 1
-                    ? isMin
-                      ? 'bg-[#3b228f] text-white shadow-lg shadow-green-500/50' // 🟢 bez border tutaj
-                      : isMax
-                      ? 'bg-[#3b228f] text-white shadow-lg shadow-red-500/50' // 🔴 bez border tutaj
-                      : 'bg-[#3b228f] text-white' // 🟣 fioletowe podświetlenie dla aktywnych wag
-                    : 'bg-gray-800 text-slate-500' // ❌ nieaktywna lub niekliknięta
-                  : 'bg-gray-900 text-gray-600'; // 🚫 pusta komórka - ciemniejsza
-
-                // Dynamiczne obramowanie - priorytet dla min/max
-                const borderStyle = isMin
-                  ? 'border-4 border-green-500' // 🟢 zielone obramowanie dla minimum
-                  : isMax
-                  ? 'border-4 border-red-500' // 🔴 czerwone obramowanie dla maksimum
-                  : 'border border-white/20'; // ⚪ standardowe białe obramowanie
-
-                return (
-                  <td
-                    key={j}
-                    className={`
-                      p-2 text-center transition-all duration-200
-                      ${cellStyle}
-                      ${borderStyle}
-                      ${hasData ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}
-                    `}
-                    onClick={hasData ? () => handleCellClick(i, j) : undefined}
-                  >
-                    {isHeader ? cell : formatNumber(cell)}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+array([[4.81081879e+07, 5.81484238e+07, 6.41709061e+07, 6.66656596e+07,
+        6.79593911e+07, 6.96232438e+07, 7.11355194e+07, 7.15505602e+07,
+        7.20581567e+07, 7.23134261e+07, 7.30655275e+07, 7.36889377e+07,
+        7.49533358e+07, 7.69022945e+07, 8.03855115e+07, 8.32811565e+07,
+        8.46055459e+07, 8.53815000e+07, 8.57336568e+07, 8.65504428e+07],
+       [1.23996604e+07, 2.06608479e+07, 2.31584089e+07, 2.51991530e+07,
+        2.69157783e+07, 2.81047467e+07, 2.98005518e+07, 3.08758040e+07,
+        3.10368771e+07, 3.17698129e+07, 3.20466675e+07, 3.21634159e+07,
+        3.27647265e+07, 3.34204928e+07, 3.39239416e+07, 3.45318224e+07,
+        3.47242663e+07, 3.49813145e+07, 3.51075500e+07,            nan],
+       [1.51831605e+07, 2.46830931e+07, 2.75802884e+07, 3.18569226e+07,
+        3.35886755e+07, 3.52277247e+07, 3.59880123e+07, 3.81397422e+07,
+        3.85157062e+07, 3.93183509e+07, 4.08915754e+07, 4.19929416e+07,
+        4.34047599e+07, 4.51875166e+07, 4.62827328e+07, 4.69833713e+07,
+        4.71075092e+07, 4.73529350e+07,            nan,            nan],
+       [1.52447673e+07, 2.69881419e+07, 3.29757220e+07, 3.54511080e+07,
+        3.73633923e+07, 3.77087594e+07, 3.93817347e+07, 4.13678604e+07,
+        4.19880617e+07, 4.27060487e+07, 4.32277514e+07, 4.44417646e+07,
+        4.50084710e+07, 4.56232959e+07, 4.57000172e+07, 4.58217004e+07,
+        4.59151404e+07,            nan,            nan,            nan],
+       [1.39782230e+07, 2.53862736e+07, 2.96195989e+07, 3.07596295e+07,
+        3.16490822e+07, 3.24550023e+07, 3.26803779e+07, 3.32490970e+07,
+        3.34491504e+07, 3.40240251e+07, 3.66298991e+07, 3.73123003e+07,
+        3.77590668e+07, 3.85985945e+07, 3.85253029e+07, 3.90370750e+07,
+                   nan,            nan,            nan,            nan],
+       [1.60240972e+07, 2.83159194e+07, 3.26539106e+07, 3.69953113e+07,
+        3.79966368e+07, 3.84900622e+07, 3.92852133e+07, 4.10275567e+07,
+        4.26766754e+07, 4.47573413e+07, 4.58374656e+07, 4.70263152e+07,
+        4.78994858e+07, 4.83570429e+07, 4.85905998e+07,            nan,
+                   nan,            nan,            nan,            nan],
+       [2.34466205e+07, 3.94239773e+07, 4.35431295e+07, 4.59566550e+07,
+        4.85936740e+07, 5.55288733e+07, 5.69010390e+07, 5.82210782e+07,
+        6.01481596e+07, 6.09647435e+07, 6.25174349e+07, 6.27620516e+07,
+        6.26865429e+07, 6.27143995e+07,            nan,            nan,
+                   nan,            nan,            nan,            nan],
+       [3.46952068e+07, 5.35163087e+07, 5.78966812e+07, 6.06951898e+07,
+        6.27094948e+07, 6.41194895e+07, 6.81185128e+07, 6.98149153e+07,
+        7.01502250e+07, 7.13499380e+07, 7.13790880e+07, 7.18648342e+07,
+        7.23230802e+07,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan],
+       [4.95315415e+07, 7.69042977e+07, 8.81944381e+07, 8.99241883e+07,
+        9.36816320e+07, 9.68781562e+07, 9.98992284e+07, 1.01279672e+08,
+        1.02690525e+08, 1.03353554e+08, 1.04001324e+08, 1.04574536e+08,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan],
+       [4.90737017e+07, 7.18086732e+07, 8.09828048e+07, 8.67023990e+07,
+        9.11027551e+07, 9.37018422e+07, 9.47900733e+07, 9.78470288e+07,
+        1.03693784e+08, 1.04698447e+08, 1.05452121e+08,            nan,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan],
+       [4.94737561e+07, 7.31353299e+07, 8.05148701e+07, 8.44872787e+07,
+        8.87446638e+07, 9.10316112e+07, 9.21640577e+07, 9.38465923e+07,
+        9.55536211e+07, 9.56966128e+07,            nan,            nan,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan],
+       [5.18496090e+07, 8.11761464e+07, 9.11480717e+07, 9.76807848e+07,
+        1.02497273e+08, 1.05619627e+08, 1.16355439e+08, 1.18824484e+08,
+        1.19336165e+08,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan],
+       [6.77505141e+07, 1.12496636e+08, 1.29207778e+08, 1.39084587e+08,
+        1.43567651e+08, 1.48389361e+08, 1.50676492e+08, 1.51792227e+08,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan],
+       [9.66987480e+07, 1.64603398e+08, 1.82138723e+08, 1.93348779e+08,
+        2.04258481e+08, 2.08575881e+08, 2.12585473e+08,            nan,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan],
+       [1.25966883e+08, 2.06220617e+08, 2.25602264e+08, 2.42830603e+08,
+        2.58791317e+08, 2.69985314e+08,            nan,            nan,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan],
+       [1.56530319e+08, 2.53887649e+08, 2.88285353e+08, 3.05410081e+08,
+        3.19902770e+08,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan],
+       [2.00361079e+08, 3.32542156e+08, 3.70966669e+08, 3.97530782e+08,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan],
+       [2.25252266e+08, 3.74616149e+08, 4.17617837e+08,            nan,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan],
+       [2.23189416e+08, 3.58148392e+08,            nan,            nan,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan],
+       [3.06549153e+08,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan,
+                   nan,            nan,            nan,            nan]])
