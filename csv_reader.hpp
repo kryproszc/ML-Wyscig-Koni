@@ -1,19 +1,15 @@
 #pragma once
-
 #include <string>
-#include <functional>
+#include <vector>
 
-struct Record
+struct CSV_Data
 {
-    double sumaUbezpieczenia;
-    int    reasekuracjaF;
-    double szerokosc;
-    double dlugosc;
-    int    woj;
+    std::vector<double> SU;
+    std::vector<int>    F;
+    std::vector<double> lat;
+    std::vector<double> lon;
+    std::vector<int>    woj;
+    std::vector<int>    adres;
 };
 
-// Funkcja czytaj¹ca CSV wiersz po wierszu.
-// Wywo³uje 'callback' dla ka¿dego poprawnie sparsowanego rekordu.
-void for_each_record(
-    const std::string& path,
-    const std::function<void(const Record&)>& callback);
+CSV_Data read_fast_csv(const std::string& path, size_t reserve_rows = 5'000'000);
