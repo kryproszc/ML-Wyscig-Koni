@@ -1,38 +1,58 @@
-#include <iostream>
-#include <chrono>
-#include "csv_reader.hpp"
+﻿#include <iostream>
+#include <string>
+#include <fstream>
+
+#include "reinsurance.hpp"
 
 int main()
 {
     try
     {
-        auto t_start = std::chrono::high_resolution_clock::now();
+        const std::string base = "D:/Ryzyko_pozaru_ekspozycje/";
+        const std::string reas_path = base + "Reasekuracja_2.csv";
+        const std::string dane_path = base + "dane_input.csv";
+        const std::string out_path = base + "dane_output.csv";
 
-        CSV_Data dane = read_fast_csv("D:/Ryzyko_pozaru_ekspozycje/dane_input.csv");
+        bool use_generated = false;
+        std::size_t generated_n = 1000000;
 
-        auto t_end = std::chrono::high_resolution_clock::now();
-        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
-        double sec = ms / 1000.0;
+        ReinsuranceResult res = process_reinsurance(
+            reas_path,
+            dane_path,
+            use_generated,
+            generated_n
+        );
 
-        std::cout << "==============================\n";
-        std::cout << "   Wczytywanie CSV zakończone\n";
-        std::cout << "==============================\n";
-        std::cout << "Rekordów: " << dane.SU.size() << "\n";
-        std::cout << "Czas: " << ms << " ms (" << sec << " s)\n\n";
-
-        if (!dane.SU.empty())
+        std::ofstream out(out_path);
+        if (!out)
         {
-            std::cout << "Pierwszy rekord:\n";
-            std::cout << " SU:   " << dane.SU[0] << "\n";
-            std::cout << " F:    " << dane.F[0] << "\n";
-            std::cout << " lat:  " << dane.lat[0] << "\n";
-            std::cout << " lon:  " << dane.lon[0] << "\n";
-            std::cout << " woj:  " << dane.woj[0] << "\n";
-            std::cout << " adr:  " << dane.adres[0] << "\n";
+            std::cerr << "Nie moge otworzyc pliku do zapisu: " << out_path << "\n";
+            return 1;
         }
+
+        out << "SU;F;lat;lon;woj;adres;SU_Netto\n";
+
+        for (std::size_t i = 0; i < res.n; ++i)
+        {
+            out << res.dane.SU[i] << ';'
+                << res.dane.F[i] << ';'
+                << res.dane.lat[i] << ';'
+                << res.dane.lon[i] << ';'
+                << res.dane.woj[i] << ';'
+                << res.dane.adres[i] << ';'
+                << res.reas_for_SU[i] << '\n';
+        }
+
+        out.close();
+
+        std::cout << "OK: zapisano " << res.n
+            << " rekordow do pliku: " << out_path << "\n";
     }
     catch (const std::exception& e)
     {
-        std::cerr << "Błąd: " << e.what() << "\n";
+        std::cerr << "Blad: " << e.what() << "\n";
+        return 1;
     }
+
+    return 0;
 }
