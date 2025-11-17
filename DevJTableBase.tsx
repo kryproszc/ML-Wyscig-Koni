@@ -1,35 +1,56 @@
-# jednorazowo, jeśli nie masz:
-# install.packages(c("leaflet", "htmlwidgets"))
+# -------------------------------
+# 1. Dane testowe (wszystkie <200 m)
+# -------------------------------
+d <- data.frame(
+  id        = 1:6,
+  lon       = c(21.0122,
+                21.0126, 21.0118,
+                21.0120, 21.0124,
+                21.0119),
+  lat       = c(52.2297,
+                52.2299, 52.2294,
+                52.2298, 52.2296,
+                52.2295),
+  odleglosc = c(0, 40, 80, 120, 160, 180)
+)
 
 library(leaflet)
 library(htmlwidgets)
 
-# 1. Wczytaj dane z CSV
-d <- read.csv2("dane_output.csv", stringsAsFactors = FALSE)
+# -------------------------------
+# 2. Budynek referencyjny
+# -------------------------------
+b_ref <- d[d$odleglosc == 0, ][1, ]
 
-# 2. Upewnij się, że lat/lon to liczby
-d$lat <- as.numeric(gsub(",", ".", as.character(d$lat)))
-d$lon <- as.numeric(gsub(",", ".", as.character(d$lon)))
-
-# (opcjonalnie sprawdź)
-# head(d[, c("lat", "lon")])
-
-# 3. Zrób mapę
-m <- leaflet(d) %>%
-  addTiles() %>%
+# -------------------------------
+# 3. Tworzenie mapy
+# -------------------------------
+m <- leaflet(d) |>
+  addTiles() |>
   addCircleMarkers(
     lng = ~lon,
     lat = ~lat,
     radius = 6,
-    color = "red",
-    fillOpacity = 0.8,
+    stroke = TRUE,
+    weight = 1,
+    color = ~ifelse(odleglosc == 0, "red", "blue"),
+    fillColor = ~ifelse(odleglosc == 0, "red", "blue"),
+    fillOpacity = 0.9,
     popup = ~paste0(
-      "SU: ", SU, "<br>",
-      "SU_Netto: ", SU_Netto, "<br>",
-      "adres: ", adres
+      "<b>ID:</b> ", id,
+      "<br><b>Odległość:</b> ", odleglosc, " m"
     )
-  ) %>%
-  setView(lng = 19, lat = 52, zoom = 6)
+  ) |>
+  addCircles(
+    lng    = b_ref$lon,
+    lat    = b_ref$lat,
+    radius = 200,
+    color  = "red",
+    weight = 2,
+    fill   = FALSE
+  )
 
-# 4. Zapisz do HTML
+# -------------------------------
+# 4. Zapis do pliku
+# -------------------------------
 saveWidget(m, "mapa.html", selfcontained = TRUE)
