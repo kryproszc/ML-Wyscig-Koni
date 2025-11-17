@@ -1,6 +1,7 @@
-﻿#include <iostream>
+#include <iostream>
 #include <string>
 #include <fstream>
+#include <iomanip>   // <-- potrzebne dla std::fixed i std::setprecision
 
 #include "reinsurance.hpp"
 
@@ -16,6 +17,7 @@ int main()
         bool use_generated = false;
         std::size_t generated_n = 1000000;
 
+        // Liczymy reasekurację i pobieramy wynik
         ReinsuranceResult res = process_reinsurance(
             reas_path,
             dane_path,
@@ -23,12 +25,19 @@ int main()
             generated_n
         );
 
+        // -------------------------
+        // ZAPIS PLIKU WYJŚCIOWEGO
+        // -------------------------
         std::ofstream out(out_path);
         if (!out)
         {
             std::cerr << "Nie moge otworzyc pliku do zapisu: " << out_path << "\n";
             return 1;
         }
+
+        // Ustawiamy formatowanie dla float/double:
+        out << std::fixed << std::setprecision(8);
+        // 8 miejsc po przecinku = idealne dla lat/lon
 
         out << "SU;F;lat;lon;woj;adres;SU_Netto\n";
 
