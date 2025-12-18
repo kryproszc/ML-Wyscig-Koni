@@ -1,2 +1,1 @@
-I wasn’t able to attend the last two meetings and wanted to check in regarding the matter related to the Hestia insurance company from Poland.
-Could you please let me know if the data was correctly forwarded?
+Wdrożenie w latach 2025–2027 narzędzi informatycznych wspomagających realizację procesów kontrolnych w Departamencie DIU, obejmujących aplikacje do ewidencji i zarządzania kontrolami oraz aplikacje wspierające ocenę i weryfikację modeli matematycznych.
