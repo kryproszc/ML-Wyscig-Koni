@@ -1,111 +1,99 @@
+-- ======================
+-- Usuwanie tabel (bezpieczne przy ponownym uruchomieniu)
+-- ======================
+DROP TABLE IF EXISTS Aktywa;
+DROP TABLE IF EXISTS SCR;
+DROP TABLE IF EXISTS SCR_do_Aktyw;
+
+-- ======================
+-- Tabele źródłowe
+-- ======================
+CREATE TABLE Aktywa (
+    data INT,
+    wartosc REAL
+);
+
+CREATE TABLE SCR (
+    data INT,
+    scr REAL
+);
+
+-- ======================
+-- Dane przykładowe
+-- ======================
+INSERT INTO Aktywa (data, wartosc) VALUES
+(2016,1000),
+(2017,1200),
+(2018,1300),
+(2019,1500),
+(2020,1700),
+(2021,1600),
+(2022,1800),
+(2023,1900),
+(2024,1950),
+(2025,2000);
+
+INSERT INTO SCR (data, scr) VALUES
+(2016,200),
+(2017,220),
+(2018,240),
+(2019,260),
+(2020,300),
+(2021,310),
+(2022,330),
+(2023,350),
+(2024,370),
+(2025,400);
+
+-- ======================
+-- Tabela wynikowa
+-- ======================
+CREATE TABLE SCR_do_Aktyw (
+    data INT,
+    aktywa REAL,
+    scr REAL,
+    ratio REAL
+);
+
+-- ======================
+-- Obliczenia
+-- ======================
+INSERT INTO SCR_do_Aktyw
+SELECT
+    a.data,
+    a.wartosc AS aktywa,
+    s.scr,
+    s.scr * 1.0 / a.wartosc AS ratio
+FROM Aktywa a
+JOIN SCR s ON a.data = s.data
+ORDER BY a.data;
+
+
+
 import sqlite3
 
-# =========================
-# 1. Połączenie z bazą SQLite
-# =========================
+# połączenie z lokalną bazą
 conn = sqlite3.connect("baza.db")
 cursor = conn.cursor()
 
-print("Połączono z bazą SQLite")
+# wczytaj plik SQL
+with open("sql/scr_pipeline.sql", "r", encoding="utf-8") as f:
+    sql_script = f.read()
 
-# =========================
-# 2. Tworzymy przykładowe tabele (symulacja danych od kolegi)
-# =========================
+# wykonaj cały skrypt
+cursor.executescript(sql_script)
 
-cursor.executescript("""
-DROP TABLE IF EXISTS orders;
-DROP TABLE IF EXISTS customers;
-DROP TABLE IF EXISTS indicators;
-
-CREATE TABLE customers (
-    customer_id INTEGER PRIMARY KEY,
-    name TEXT,
-    region TEXT
-);
-
-CREATE TABLE orders (
-    order_id INTEGER PRIMARY KEY,
-    customer_id INTEGER,
-    amount REAL,
-    order_date TEXT
-);
-""")
-
-print("Utworzono tabele")
-
-# =========================
-# 3. Wstawiamy przykładowe dane
-# =========================
-
-cursor.executemany(
-    "INSERT INTO customers VALUES (?, ?, ?)",
-    [
-        (1, "Anna", "North"),
-        (2, "Jan", "South"),
-        (3, "Ola", "North"),
-        (4, "Piotr", "West"),
-    ]
-)
-
-cursor.executemany(
-    "INSERT INTO orders VALUES (?, ?, ?, ?)",
-    [
-        (1, 1, 100, "2025-01-10"),
-        (2, 1, 200, "2025-02-01"),
-        (3, 2, 150, "2025-02-03"),
-        (4, 3, 300, "2025-02-10"),
-        (5, 4, 50,  "2025-02-11"),
-    ]
-)
-
-print("Dodano dane")
-
-# =========================
-# 4. Tworzymy tabelę wynikową
-# =========================
-
-cursor.execute("""
-CREATE TABLE indicators (
-    region TEXT,
-    orders_cnt INTEGER,
-    total_sales REAL,
-    avg_sales REAL
-);
-""")
-
-# =========================
-# 5. Liczymy wskaźniki SQL-em i zapisujemy
-# =========================
-
-cursor.executescript("""
-INSERT INTO indicators
-SELECT
-    c.region,
-    COUNT(o.order_id) AS orders_cnt,
-    SUM(o.amount) AS total_sales,
-    AVG(o.amount) AS avg_sales
-FROM orders o
-JOIN customers c ON o.customer_id = c.customer_id
-GROUP BY c.region;
-""")
-
-print("Policzono wskaźniki")
-
-# =========================
-# 6. Sprawdzamy wynik
-# =========================
-
-cursor.execute("SELECT * FROM indicators")
+# sprawdź wynik
+cursor.execute("SELECT * FROM SCR_do_Aktyw")
 rows = cursor.fetchall()
 
-print("\nWyniki:")
+print("\nSCR_do_Aktyw:")
 for r in rows:
     print(r)
 
-# =========================
-# 7. Zapis i zamknięcie
-# =========================
 conn.commit()
 conn.close()
 
-print("\nGotowe! Plik baza.db utworzony.")
+print("\nGotowe.")
+
+
