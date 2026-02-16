@@ -1,11 +1,6 @@
-import sqlite3
-import pandas as pd
+cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+tables = cursor.fetchall()
 
-conn = sqlite3.connect("baza.db")
-
-df = pd.read_sql("SELECT * FROM SCR_do_Aktyw", conn)
-
-print("\nTabela SCR_do_Aktyw:")
-print(df)
-
-conn.close()
+print("\nTabele w bazie:")
+for t in tables:
+    print("-", t[0])
