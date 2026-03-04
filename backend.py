@@ -1,21 +1,36 @@
 import pyodbc
-import pandas as pd
 
-server = "ADRES_SERWERA"
-database = "NAZWA_BAZY"
-username = "LOGIN"
-password = "HASLO"
+server = "DTC-NEWM5-SNU"
+database = "SNU_ANA"
+username = "ss_snu_qrt"
+password = "TWOJE_HASLO"
 
-conn = pyodbc.connect(
+conn_str = (
     "DRIVER={ODBC Driver 17 for SQL Server};"
     f"SERVER={server};"
     f"DATABASE={database};"
     f"UID={username};"
-    f"PWD={password}"
+    f"PWD={password};"
 )
 
-query = "SELECT * FROM dbo.NAZWA_WIDOKU"
+try:
+    conn = pyodbc.connect(conn_str)
+    print("Połączenie OK")
+except Exception as e:
+    print("Błąd:", e)
 
-df = pd.read_sql(query, conn)
 
-print(df.head())
+
+-----
+
+
+import pyodbc
+
+conn = pyodbc.connect(
+    "DRIVER={ODBC Driver 17 for SQL Server};"
+    "SERVER=DTC-NEWM5-SNU;"
+    "DATABASE=SNU_ANA;"
+    "Trusted_Connection=yes;"
+)
+
+print("Połączono")
