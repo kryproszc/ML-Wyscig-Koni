@@ -34,10 +34,10 @@ for view in views:
 
 
 
+print("Gotowe! Wszystkie widoki zapisane do local_snu_ana.db")
 
 
 
 
 runas /netonly /user:IT\ss_snu_qrt "python download_all_views.py"
 
-print("Gotowe! Wszystkie widoki zapisane do local_snu_ana.db")
