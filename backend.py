@@ -1,4 +1,9 @@
-C:\Python311\python.exe -m pip install pyodbc pandas
+import sqlite3
 
-runas /netonly /user:IT\ss_snu_qrt "cmd /k cd /d C:\temp && C:\Python311\python.exe python_download_all_views.py"
+conn = sqlite3.connect(r"C:\temp\local_snu_ana.db")
 
+cursor = conn.cursor()
+
+cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+
+print(cursor.fetchall())
