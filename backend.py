@@ -1,9 +1,14 @@
-import sqlite3
-
-conn = sqlite3.connect(r"C:\temp\local_snu_ana.db")
-
-cursor = conn.cursor()
-
-cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-
-print(cursor.fetchall())
+SELECT
+    a.DATA_SPR,
+    a.TYP_OKRESU,
+    a.DZIAL,
+    a.KOD_ZU,
+    a.NAZWA_ZU,
+    a.KOD_POZYCJI,
+    a.KOD_MACIERZY_DANYCH,
+    a.C0010,
+    b.C0020
+FROM dbo.V_S_02_01_01_01_DIU a
+LEFT JOIN dbo.V_S_02_01_02_01_DIU b
+    ON a.C0020 = b.C0020
+WHERE a.KOD_POZYCJI = 'R0500'
