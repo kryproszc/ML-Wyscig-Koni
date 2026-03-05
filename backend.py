@@ -1,10 +1,7 @@
-import sqlite3
-import pandas as pd
-
-conn = sqlite3.connect(r"I:\WOM\Modele\Monitorowanie\Narzędzie_do_monitorowania_modeli\Wskazniki_Baza\Baza\local_snu_ana.db")
-
-df = pd.read_sql_query("SELECT * FROM calkowity_wymog", conn)
-
-print(df)
-
-conn.close()
+  CASE 
+        WHEN v25.TYP_OKRESU = 'R' THEN 1
+        WHEN v25.TYP_OKRESU = 'K' AND MONTH(v25.DATA_SPR) = 3 THEN 1
+        WHEN v25.TYP_OKRESU = 'K' AND MONTH(v25.DATA_SPR) = 6 THEN 2
+        WHEN v25.TYP_OKRESU = 'K' AND MONTH(v25.DATA_SPR) = 9 THEN 3
+        WHEN v25.TYP_OKRESU = 'K' AND MONTH(v25.DATA_SPR) = 12 THEN 4
+    END AS NR_OKRESU,
