@@ -1,13 +1,4 @@
-WITH suma_R0960 AS
-(
-    SELECT
-        DATA_SPR,
-        TYP_OKRESU,
-        KOD_ZU,
-        SUM(R0960) AS SUMA_R0960
-    FROM SNU_ANA.dbo.V_S_26_13_01_07_DIU
-    GROUP BY
-        DATA_SPR,
-        TYP_OKRESU,
-        KOD_ZU
-)
+LEFT JOIN suma_R0960 s
+    ON v25.DATA_SPR = s.DATA_SPR
+    AND v25.TYP_OKRESU = s.TYP_OKRESU
+    AND v25.KOD_ZU = s.KOD_ZU
