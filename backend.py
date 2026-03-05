@@ -1,7 +1,15 @@
-CASE
-    WHEN v12a.C0150 IS NOT NULL
-        THEN 1 / NULLIF((v12a.C0150 + v17a.C0180 + v17a2.C0180),0)
-    WHEN v12b.C0150 IS NOT NULL
-        THEN 1 / NULLIF((v12b.C0150 + v17b.C0180 + v17b2.C0180),0)
-    ELSE NULL
-END AS SCR_do_naj_oszac
+import sqlite3
+from pathlib import Path
+
+conn = sqlite3.connect(r"I:\WOM\Modele\Monitoro\Baza\local_snu_ana.db")
+cursor = conn.cursor()
+
+sql_file = Path(r"I:\WOM\Modele\Monitoro\Kod_SQL\Ekspozycja na ryzyko\calkowity_wymog.sql")
+
+with open(sql_file, "r", encoding="utf-8") as f:
+    sql = f.read()
+
+cursor.executescript(sql)
+
+conn.commit()
+conn.close()
